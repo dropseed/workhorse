@@ -4,6 +4,8 @@ import requests
 import sys
 import time
 
+import click
+
 
 api_base = "https://api.github.com"
 
@@ -12,7 +14,7 @@ def run(path, token):
     with open(path, "r") as f:
         data = yaml.safe_load(f)
 
-    actions = {"add_labels": add_labels, "remove_label": remove_label, "sleep": sleep}
+    actions = {"add_labels": add_labels, "remove_label": remove_label, "close_issue": close_issue, "sleep": sleep}
 
     session = requests.session()
     session.headers.update({"Authorization": f"token {token}"})
@@ -24,10 +26,16 @@ def run(path, token):
     while next_page_url:
         response = session.get(next_page_url, params=search["issues"])
         response.raise_for_status()
-        next_page_url = response.links.get("next", "")
+        next_page_url = response.links.get("next", {}).get("url", "")
         search_results += response.json()["items"]
 
     print(f"{len(search_results)} search results")
+
+    if click.confirm("Print results now?"):
+        [print(x["html_url"], x["title"]) for x in search_results]
+
+    if not click.confirm("Run on these results?"):
+        exit(1)
 
     for item in search_results:
 
@@ -52,18 +60,32 @@ def run(path, token):
         print()
 
 
+# or actions should be generated from graphql mutations? can add custom ones to that... but start from those?
+
+
 # these get "registered", and there is a system for registering outside of built-ins from me
 # each should maybe be a class? with a validate fn, that can run as a part of config loading/validating to make sure args
 # will work -- if were a configyaml class, then this would work
 def add_labels(labels, repo_full_name, issue_number, session):
     response = session.post(f"{api_base}/repos/{repo_full_name}/issues/{issue_number}/labels", json={"labels": labels})
     response.raise_for_status()
+    print(response)
 
 
 def remove_label(label, repo_full_name, issue_number, session):
     response = session.delete(
         f"{api_base}/repos/{repo_full_name}/issues/{issue_number}/labels/{label}")
     response.raise_for_status()
+    print(response)
+
+
+def close_issue(x, repo_full_name, issue_number, session):
+    # could be edit_issue with params passed through
+    # OR mutation closeIssue
+    response = session.patch(
+        f"{api_base}/repos/{repo_full_name}/issues/{issue_number}", json={"state": "closed"})
+    response.raise_for_status()
+    print(response)
 
 
 def sleep(seconds, *args, **kwargs):

@@ -1,6 +1,0 @@
-{
-    "script": "relabel-automerge",
-    "targets": [
-        "pull urls"
-    ]
-}

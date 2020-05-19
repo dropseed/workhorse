@@ -1,3 +1,3 @@
 #!/bin/sh -ex
 ./scripts/go-install
-$GOPATH/bin/workhorse run $@
+$GOPATH/bin/workhorse $@

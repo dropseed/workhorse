@@ -4,5 +4,9 @@
 
 An automation tool for managing GitHub pull requests in bulk.
 
-Repo example - clean up branches
-PR example - label automerge
+Repo examples
+- clean up branches
+- set repo settings (required status check, turn off wiki)
+
+PR example
+- label automerge

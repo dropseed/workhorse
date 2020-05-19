@@ -57,9 +57,24 @@ func (gh *GitHub) ValidateCommand(name string, args ...interface{}) error {
 }
 
 func (gh *GitHub) Search(query string) ([]*github.Issue, error) {
-	result, _, err := gh.client.Search.Issues(*gh.ctx, query, nil)
-	if err != nil {
-		return nil, err
+	opt := &github.SearchOptions{
+		ListOptions: github.ListOptions{PerPage: 100},
+		Sort:        "created",
+		Order:       "desc",
 	}
-	return result.Issues, nil
+
+	var allIssues []*github.Issue
+	for {
+		result, resp, err := gh.client.Search.Issues(*gh.ctx, query, opt)
+		if err != nil {
+			return nil, err
+		}
+		allIssues = append(allIssues, result.Issues...)
+		if resp.NextPage == 0 {
+			break
+		}
+		opt.Page = resp.NextPage
+	}
+
+	return allIssues, nil
 }

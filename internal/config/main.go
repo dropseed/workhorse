@@ -9,21 +9,13 @@ import (
 )
 
 type Step struct {
-	Run  string        `yaml:"run",json:"run"`
-	Args []interface{} `yaml:"args",json:"args"`
-}
-
-type SearchIssues struct {
-	Q string `yaml:"q",json:"q"`
-}
-
-type Search struct {
-	Issues *SearchIssues `yaml:"issues",json:"issues"`
+	Run  string        `yaml:"run" json:"run"`
+	Args []interface{} `yaml:"args" json:"args"`
 }
 
 type Config struct {
-	Search *Search `yaml:"search",json:"search"`
-	Steps  []*Step `yaml:"steps",json:"steps"`
+	Issues string  `yaml:"issues" json:"issues"`
+	Steps  []*Step `yaml:"steps" json:"steps"`
 }
 
 func NewConfigFromPath(path string) (*Config, error) {

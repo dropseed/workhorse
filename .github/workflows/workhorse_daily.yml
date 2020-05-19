@@ -15,20 +15,11 @@ jobs:
       with:
         script: relabel-automerge
         github_token: ${{ secrets.GITHUB_TOKEN }}
-        # repos? list or pattern?
 
-        # opens PR
-        # title: Run relabel-automerge on 10 PRs
-        # body: list of PRs (repo: #1 - title)
-
-        # adds a log file (like terraform plan), title shouldn't matter (could be manual or PR automated)
-        # push workflow will see that the log file was added, and try to run (like terraform apply)
-        # {
-        #     actor: PR url?
-        #     script: relabel_automerge,
-        #     targets: [urls]
-        # }
-
-        # if PR already existed?
-        # branch name - workhorse/relabel-automerge
-        # update log and PR (like deps does)
+        # workhorse plan $SCRIPT
+        # new
+          # commit
+          # push and open PR
+        # exists (workhorse/scriptpath without extension and lowercase, prepend with workhorse/ if it doesn't have it? or ask them to specify branch name for now?)
+          # rebase? remove old plan/update it
+          # update PR title and body

@@ -1,0 +1,19 @@
+search:
+  issues:
+    q: "is:open is:pr label:automerge org:flinthillsdesign"
+
+steps:
+  - run: remove_label
+    args: [automerge]
+  - run: sleep
+    args: [2]
+  - run: add_labels
+    args: [automerge]
+
+  # - try:
+  #     merge:
+  #       commit_title: "{pr.title}"
+  #       merge_method: squash
+  #     delete:
+  #   except:
+  #     print_warning: "Unable to merge or delete"

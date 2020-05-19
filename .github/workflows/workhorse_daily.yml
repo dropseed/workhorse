@@ -1,0 +1,34 @@
+# action is where the schedule is defined
+# (scripts can be run manually, or by whatever automation calls them - it doesn't care about schedule)
+
+
+on:
+  schedule:
+  - cron: 0 0 * * 1
+
+jobs:
+  workhorse:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: dropseed/workhorse@v1
+      with:
+        script: relabel-automerge
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        # repos? list or pattern?
+
+        # opens PR
+        # title: Run relabel-automerge on 10 PRs
+        # body: list of PRs (repo: #1 - title)
+
+        # adds a log file (like terraform plan), title shouldn't matter (could be manual or PR automated)
+        # push workflow will see that the log file was added, and try to run (like terraform apply)
+        # {
+        #     actor: PR url?
+        #     script: relabel_automerge,
+        #     targets: [urls]
+        # }
+
+        # if PR already existed?
+        # branch name - workhorse/relabel-automerge
+        # update log and PR (like deps does)

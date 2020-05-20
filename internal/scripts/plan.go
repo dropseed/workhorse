@@ -197,7 +197,6 @@ func (p *Plan) Execute() error {
 				return err
 			}
 		}
-		break
 	}
 
 	return nil

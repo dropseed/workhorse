@@ -48,6 +48,15 @@ func DeleteBranch(name string) error {
 	return nil
 }
 
+func Status() string {
+	cmd := exec.Command("git", "status", "--porcelain")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+	return string(out)
+}
+
 func IsDirty() bool {
 	cmd := exec.Command("git", "status", "--porcelain")
 	out, err := cmd.CombinedOutput()
@@ -83,7 +92,7 @@ func Push(branch string) {
 	}
 }
 
-func GitRemote() string {
+func Remote() string {
 	cmd := exec.Command("git", "remote", "get-url", "origin")
 	remote, err := cmd.CombinedOutput()
 	if err != nil {

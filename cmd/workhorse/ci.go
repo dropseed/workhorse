@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 
 	"github.com/dropseed/workhorse/internal/git"
@@ -19,7 +18,7 @@ var ciPlanCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		if !force && git.IsDirty() {
-			printErrAndExitFailure(errors.New("Git status must be clean first"))
+			printErrAndExitFailure(fmt.Errorf("Git status must be clean first\n\n%s", git.Status()))
 		}
 
 		plan, err := scripts.CreatePlan(args[0])

@@ -13,7 +13,7 @@ func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 	ctx := context.Background()
 	client := newClient()
 
-	remote := git.GitRemote()
+	remote := git.Remote()
 	parts := strings.Split(remote, "/")
 	owner := parts[len(parts)-2]
 	repo := parts[len(parts)-1]

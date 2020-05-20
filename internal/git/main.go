@@ -102,3 +102,23 @@ func Remote() string {
 	s = strings.TrimSpace(s)
 	return s
 }
+
+func LastCommitFilesAdded(filterPrefix string) []string {
+	cmd := exec.Command("git", "diff", "HEAD^", "HEAD", "--name-only", "--diff-filter", "A")
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		panic(err)
+	}
+	s := string(out)
+
+	lines := strings.Split(s, "\n")
+
+	paths := []string{}
+	for _, line := range lines {
+		line := strings.TrimSpace(line)
+		if strings.HasPrefix(line, filterPrefix) {
+			paths = append(paths, line)
+		}
+	}
+	return paths
+}

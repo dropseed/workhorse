@@ -52,6 +52,8 @@ var ciPlanCmd = &cobra.Command{
 		git.Commit(plan.GetPath(), fmt.Sprintf("Create %s plan %s", meta.AppName, planSlug))
 		git.Push(branch)
 
+		// TODO ideally we would only push if there is a difference, not force push every time
+
 		title := fmt.Sprintf("%s: %s", planSlug, plan.Script)
 		body := fmt.Sprintf("Merging this PR will run %s on the following PRs:\n\n", plan.Script)
 		for _, target := range plan.Targets {
@@ -72,9 +74,24 @@ var ciExecuteCmd = &cobra.Command{
 	Use:   "execute",
 	Short: "",
 	Run: func(cmd *cobra.Command, args []string) {
-		// execute plans
-		// based purely on git commit? whatever was committed
 		// need a SKIP option based on msg or something (how else do you commit a plan you ran manually - or you don't!)
+		lastFiles := git.LastCommitFilesAdded(scripts.GetPlansDir())
+		if len(lastFiles) > 0 {
+
+			println("Plans to execute:")
+			for _, path := range lastFiles {
+				println("  " + path)
+			}
+
+			for _, path := range lastFiles {
+				fmt.Printf("Executing plan: %s", path)
+				if err := scripts.ExecutePlan(path); err != nil {
+					printErrAndExitFailure(err)
+				}
+			}
+		} else {
+			println("No plans in last commit to execute")
+		}
 	},
 }
 

@@ -18,6 +18,10 @@ import (
 	"github.com/mitchellh/mapstructure"
 )
 
+func GetPlansDir() string {
+	return path.Join(meta.AppName, "plans")
+}
+
 type Plan struct {
 	// version of release that ran it?
 	Script  string         `json:"script"`
@@ -126,7 +130,7 @@ func (p *Plan) getID() string {
 		return p.id
 	}
 
-	plansDir := path.Join(meta.AppName, "plans")
+	plansDir := GetPlansDir()
 	files, err := ioutil.ReadDir(plansDir)
 
 	if os.IsNotExist(err) {
@@ -159,7 +163,7 @@ func (p *Plan) getID() string {
 }
 
 func (p *Plan) GetPath() string {
-	plansDir := path.Join(meta.AppName, "plans")
+	plansDir := GetPlansDir()
 	return path.Join(plansDir, fmt.Sprintf("%s.json", p.GetSlug()))
 }
 

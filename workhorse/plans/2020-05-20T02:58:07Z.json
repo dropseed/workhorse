@@ -1,0 +1,25 @@
+{
+  "script": "workhorse/scripts/label-automerge.yml",
+  "targets": [
+    "https://github.com/flinthillsdesign/SojournMennonite/pull/249",
+    "https://github.com/flinthillsdesign/MCUSA/pull/453",
+    "https://github.com/flinthillsdesign/SojournMennonite/pull/248",
+    "https://github.com/flinthillsdesign/MCUSA/pull/451",
+    "https://github.com/flinthillsdesign/TrinityHeightsUMC/pull/146",
+    "https://github.com/flinthillsdesign/Atomic/pull/351",
+    "https://github.com/flinthillsdesign/JHBanning/pull/214",
+    "https://github.com/flinthillsdesign/PrairieBuildingSystems/pull/159",
+    "https://github.com/flinthillsdesign/CarriageFactoryGallery/pull/291"
+  ],
+  "config": {
+    "issues": "is:open is:pr label:dependencies org:flinthillsdesign author:fhdmachines",
+    "steps": [
+      {
+        "run": "add_labels",
+        "args": [
+          "automerge"
+        ]
+      }
+    ]
+  }
+}

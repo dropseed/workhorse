@@ -26,6 +26,11 @@ var ciPlanCmd = &cobra.Command{
 			printErrAndExitFailure(err)
 		}
 
+		if len(plan.Targets) == 0 {
+			println("No targets found for plan")
+			return
+		}
+
 		branch := git.CleanBranchName(plan.Script)
 		fmt.Printf("Branch: %s\n", branch)
 

@@ -16,11 +16,19 @@ func fileExists(filename string) bool {
 	return !info.IsDir()
 }
 
-func Find(dir, name, extension string) string {
+func find(dir, name, extension string) string {
 	if fileExists(name) {
 		return name
 	}
 	return path.Join("workhorse", dir, fmt.Sprintf("%s.%s", name, extension))
+}
+
+func FindScript(name string) string {
+	return find("scripts", name, "yml")
+}
+
+func FindPlan(name string) string {
+	return find("plans", name, "json")
 }
 
 // func RunScript(scriptName string) error {
@@ -58,42 +66,43 @@ func Find(dir, name, extension string) string {
 // 	return nil
 // }
 
-func CreatePlan(scriptName, planName string) error {
-	scriptPath := Find("scripts", scriptName, "yml")
+func CreatePlan(script, planName string) (*Plan, error) {
+	scriptPath := FindScript(script)
 	config, err := config.NewConfigFromPath(scriptPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	plan, err := NewPlan(scriptPath, config)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := plan.Validate(); err != nil {
-		return err
+		return nil, err
 	}
 
 	if err := plan.Load(); err != nil {
-		return err
+		return nil, err
 	}
 
 	fmt.Printf("%d targets found\n", len(plan.Targets))
 	if len(plan.Targets) < 1 {
-		return nil
+		return plan, nil
 	}
 
 	planPath, err := plan.Save(planName)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	fmt.Printf("Plan saved: %s\n", planPath)
 
-	return nil
+	return plan, nil
 }
 
 func ExecutePlan(planName string) error {
-	plan, err := NewPlanFromPath(Find("plans", planName, "json"))
+	planPath := FindPlan(planName)
+	plan, err := NewPlanFromPath(planPath)
 	if err != nil {
 		return err
 	}

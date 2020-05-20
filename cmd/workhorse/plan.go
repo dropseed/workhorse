@@ -13,7 +13,7 @@ var planCmd = &cobra.Command{
 	Args:  cobra.ExactArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		planName := time.Now().UTC().Format(time.RFC3339)
-		if err := scripts.CreatePlan(args[0], planName); err != nil {
+		if _, err := scripts.CreatePlan(args[0], planName); err != nil {
 			printErrAndExitFailure(err)
 		}
 	},

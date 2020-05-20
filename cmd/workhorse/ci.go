@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"time"
 
@@ -9,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-var scriptName string
+var force bool
 
 var ciPlanCmd = &cobra.Command{
 	Use:   "plan",
@@ -18,6 +19,10 @@ var ciPlanCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		// get branch name and checkout or create
 		// if exists, then rebase?
+		if !force && git.IsDirty() {
+			printErrAndExitFailure(errors.New("Git status must be clean first"))
+		}
+
 		planName := time.Now().UTC().Format(time.RFC3339)
 
 		plan, err := scripts.CreatePlan(args[0], planName)
@@ -50,7 +55,7 @@ var ciCmd = &cobra.Command{
 }
 
 func init() {
-	ciPlanCmd.Flags().StringVar(&scriptName, "plan", "", "Script name to generate plan for")
+	ciPlanCmd.Flags().BoolVarP(&force, "force", "", false, "Force")
 	ciCmd.AddCommand(ciPlanCmd)
 	ciCmd.AddCommand(ciExecuteCmd)
 	rootCmd.AddCommand(ciCmd)

@@ -14,10 +14,20 @@ type GitHub struct {
 	commands map[string]Command
 }
 
+func getToken() string {
+	if s := os.Getenv("WORKHORSE_TOKEN"); s != "" {
+		return s
+	}
+	if s := os.Getenv("GITHUB_TOKEN"); s != "" {
+		return s
+	}
+	return ""
+}
+
 func newClient() *github.Client {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
-		&oauth2.Token{AccessToken: os.Getenv(("GITHUB_TOKEN"))},
+		&oauth2.Token{AccessToken: getToken()},
 	)
 	tc := oauth2.NewClient(ctx, ts)
 	return github.NewClient(tc)

@@ -11,6 +11,7 @@ import (
 	"regexp"
 	"sort"
 	"strconv"
+	"strings"
 
 	"github.com/dropseed/workhorse/internal/config"
 	"github.com/dropseed/workhorse/internal/github"
@@ -151,6 +152,9 @@ func (p *Plan) getID() string {
 		base := filepath.Base(f.Name())
 		if ext := filepath.Ext(base); ext == ".json" {
 			name := base[:len(base)-len(ext)]
+			if strings.HasPrefix(name, meta.AppAbbr+"-") {
+				name = name[len(meta.AppAbbr)+1:]
+			}
 			num, err := strconv.Atoi(name)
 			if err == nil && num > planNumber {
 				planNumber = num

@@ -16,6 +16,7 @@ import (
 	"github.com/dropseed/workhorse/internal/config"
 	"github.com/dropseed/workhorse/internal/github"
 	"github.com/dropseed/workhorse/internal/meta"
+	"github.com/dropseed/workhorse/internal/utils"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -149,9 +150,8 @@ func (p *Plan) getID() string {
 	planNumber := 1
 
 	for _, f := range files {
-		base := filepath.Base(f.Name())
-		if ext := filepath.Ext(base); ext == ".json" {
-			name := base[:len(base)-len(ext)]
+		if ext := filepath.Ext(f.Name()); ext == ".json" {
+			name := utils.ExtensionlessBasename(f.Name())
 			if strings.HasPrefix(name, meta.AppAbbr+"-") {
 				name = name[len(meta.AppAbbr)+1:]
 			}

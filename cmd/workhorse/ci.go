@@ -7,6 +7,7 @@ import (
 	"github.com/dropseed/workhorse/internal/github"
 	"github.com/dropseed/workhorse/internal/meta"
 	"github.com/dropseed/workhorse/internal/scripts"
+	"github.com/dropseed/workhorse/internal/utils"
 	"github.com/spf13/cobra"
 )
 
@@ -54,7 +55,7 @@ var ciPlanCmd = &cobra.Command{
 
 		// TODO ideally we would only push if there is a difference, not force push every time
 
-		title := fmt.Sprintf("%s: %s", planSlug, plan.Script)
+		title := fmt.Sprintf("%s: %s", planSlug, utils.ExtensionlessBasename(plan.Script))
 		body := fmt.Sprintf("Merging this PR will run %s on the following PRs:\n\n", plan.Script)
 		for _, target := range plan.Targets {
 			body = body + "- " + target + "\n"

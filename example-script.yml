@@ -1,0 +1,7 @@
+pulls:
+  search: "is:open org:dropseed"
+  steps:
+    - add_labels:
+        labels: [automerge]
+    - sleep:
+        duration: 2.5

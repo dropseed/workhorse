@@ -2,34 +2,17 @@ package scripts
 
 import (
 	"fmt"
-	"os"
-	"path"
 
-	"github.com/dropseed/workhorse/internal/config"
-	"github.com/dropseed/workhorse/internal/meta"
+	"github.com/dropseed/workhorse/internal/github"
+	"github.com/dropseed/workhorse/internal/utils"
 )
 
-func fileExists(filename string) bool {
-	info, err := os.Stat(filename)
-	if os.IsNotExist(err) {
-		return false
-	}
-	return !info.IsDir()
-}
-
-func find(dir, name, extension string) string {
-	if fileExists(name) {
-		return name
-	}
-	return path.Join(meta.AppName, dir, fmt.Sprintf("%s.%s", name, extension))
-}
-
 func FindScript(name string) string {
-	return find("scripts", name, "yml")
+	return utils.Find("scripts", name, "yml")
 }
 
 func FindPlan(name string) string {
-	return find("plans", name, "json")
+	return utils.Find("plans", name, "json")
 }
 
 // func RunScript(scriptName string) error {
@@ -69,7 +52,7 @@ func FindPlan(name string) string {
 
 func CreatePlan(script string) (*Plan, error) {
 	scriptPath := FindScript(script)
-	config, err := config.NewConfigFromPath(scriptPath)
+	config, err := github.NewConfigFromPath(scriptPath)
 	if err != nil {
 		return nil, err
 	}

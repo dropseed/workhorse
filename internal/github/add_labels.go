@@ -6,25 +6,19 @@ import (
 )
 
 type AddLabels struct {
+	Labels []string `yaml:"labels" json:"labels" mapstructure:"labels"`
 }
 
-func (cmd *AddLabels) Run(gh *GitHub, owner string, repo string, number int, args ...interface{}) error {
-	labels := []string{}
-	for _, arg := range args {
-		labels = append(labels, arg.(string))
-	}
-	_, _, err := gh.client.Issues.AddLabelsToIssue(context.Background(), owner, repo, number, labels)
+func (cmd *AddLabels) Run(target string) error {
+	owner, repo, number := parseIssueTarget(target)
+	client := newClient()
+	_, _, err := client.Issues.AddLabelsToIssue(context.Background(), owner, repo, number, cmd.Labels)
 	return err
 }
 
-func (cmd *AddLabels) Validate(args ...interface{}) error {
-	if len(args) < 1 {
+func (cmd *AddLabels) Validate() error {
+	if len(cmd.Labels) < 1 {
 		return errors.New("Should have at least one label")
-	}
-	for _, arg := range args {
-		if _, ok := arg.(string); !ok {
-			return errors.New("Arg is not a string")
-		}
 	}
 	return nil
 }

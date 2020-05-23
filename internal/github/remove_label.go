@@ -2,26 +2,19 @@ package github
 
 import (
 	"context"
-	"errors"
 )
 
 type RemoveLabel struct {
+	Label string `yaml:"label" json:"label" mapstructure:"label"`
 }
 
-func (cmd *RemoveLabel) Run(gh *GitHub, owner string, repo string, number int, args ...interface{}) error {
-	label := args[0].(string)
-	_, err := gh.client.Issues.RemoveLabelForIssue(context.Background(), owner, repo, number, label)
+func (cmd *RemoveLabel) Run(target string) error {
+	owner, repo, number := parseIssueTarget(target)
+	client := newClient()
+	_, err := client.Issues.RemoveLabelForIssue(context.Background(), owner, repo, number, cmd.Label)
 	return err
 }
 
-func (cmd *RemoveLabel) Validate(args ...interface{}) error {
-	if len(args) != 1 {
-		return errors.New("Should have at exactly one label")
-	}
-	for _, arg := range args {
-		if _, ok := arg.(string); !ok {
-			return errors.New("Arg is not a string")
-		}
-	}
+func (cmd *RemoveLabel) Validate() error {
 	return nil
 }

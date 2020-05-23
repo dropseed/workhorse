@@ -1,21 +1,31 @@
-package config
+package github
 
 import (
 	"io"
 	"os"
 
+	"github.com/google/go-github/v31/github"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v2"
 )
 
-type Step struct {
-	Run  string        `yaml:"run" json:"run"`
-	Args []interface{} `yaml:"args" json:"args"`
+type Config struct {
+	Pulls *Pulls `yaml:"pulls" json:"pulls" mapstructure:"pulls"`
+	// Issues
+	// Repos
+	client *github.Client
 }
 
-type Config struct {
-	Issues string  `yaml:"issues" json:"issues"`
-	Steps  []*Step `yaml:"steps" json:"steps"`
+func (config *Config) Validate() error {
+
+	// should only have pulls, issues, or repos
+	if config.Pulls != nil {
+		if err := config.Pulls.Validate(); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 func NewConfigFromPath(path string) (*Config, error) {
@@ -53,6 +63,8 @@ func newConfigFromMap(m map[string]interface{}) (*Config, error) {
 	if err = mapDecoder.Decode(m); err != nil {
 		return nil, err
 	}
+
+	config.client = newClient()
 
 	return config, nil
 }

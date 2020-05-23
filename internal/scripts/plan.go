@@ -8,12 +8,9 @@ import (
 	"os"
 	"path"
 	"path/filepath"
-	"regexp"
-	"sort"
 	"strconv"
 	"strings"
 
-	"github.com/dropseed/workhorse/internal/config"
 	"github.com/dropseed/workhorse/internal/github"
 	"github.com/dropseed/workhorse/internal/meta"
 	"github.com/dropseed/workhorse/internal/utils"
@@ -28,22 +25,15 @@ type Plan struct {
 	// version of release that ran it?
 	Script  string         `json:"script"`
 	Targets []string       `json:"targets"`
-	Config  *config.Config `json:"config"`
-	client  *github.GitHub
+	Config  *github.Config `json:"config"`
 	id      string
 }
 
-func NewPlan(script string, config *config.Config) (*Plan, error) {
-	client, err := github.NewGitHub()
-	if err != nil {
-		return nil, err
-	}
-
+func NewPlan(script string, config *github.Config) (*Plan, error) {
 	return &Plan{
 		Script:  script,
 		Targets: []string{},
 		Config:  config,
-		client:  client,
 	}, nil
 }
 
@@ -83,43 +73,29 @@ func newPlanFromMap(m map[string]interface{}) (*Plan, error) {
 		return nil, err
 	}
 
-	client, err := github.NewGitHub()
-	if err != nil {
-		return nil, err
-	}
-	plan.client = client
-
 	return plan, nil
 }
 
 func (p *Plan) Validate() error {
-	for _, s := range p.Config.Steps {
-		if err := p.client.ValidateCommand(s.Run, s.Args...); err != nil {
-			fmt.Printf("%+v\n%+v\n", s.Run, s.Args)
-			return err
-		}
+	if err := p.Config.Validate(); err != nil {
+		return err
 	}
 	return nil
 }
 
 func (p *Plan) Load() error {
-	fmt.Printf("Query:\n%s\n\n", p.Config.Issues)
-
-	issues, err := p.client.Search(p.Config.Issues)
+	targets, err := p.Config.GetTargets()
 	if err != nil {
 		return err
 	}
 
-	for _, i := range issues {
-		url := i.GetHTMLURL()
-		p.Targets = append(p.Targets, url)
-		fmt.Printf("%s\n", url)
-	}
-
-	// sort for diff consistency
-	sort.Strings(p.Targets)
+	p.Targets = targets
 
 	return nil
+}
+
+func (p *Plan) Execute() error {
+	return p.Config.ExecuteTargets(p.Targets)
 }
 
 func (p *Plan) GetSlug() string {
@@ -182,26 +158,4 @@ func (p *Plan) Save() (string, error) {
 		panic(err)
 	}
 	return path, nil
-}
-
-func (p *Plan) Execute() error {
-	repoRe := regexp.MustCompile(`/([^/]+)/([^/]+)/pull/(\d+)`)
-
-	for _, target := range p.Targets {
-		fmt.Printf("%s\n", target)
-		for _, s := range p.Config.Steps {
-			fmt.Printf("  %s\n", s.Run)
-
-			sub := repoRe.FindAllStringSubmatch(target, -1)
-			owner := sub[0][1]
-			repo := sub[0][2]
-			number, _ := strconv.Atoi(sub[0][3])
-
-			if err := p.client.RunCommand(s.Run, owner, repo, number, s.Args...); err != nil {
-				return err
-			}
-		}
-	}
-
-	return nil
 }

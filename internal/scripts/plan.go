@@ -132,8 +132,8 @@ func (p *Plan) getID() string {
 				name = name[len(meta.AppAbbr)+1:]
 			}
 			num, err := strconv.Atoi(name)
-			if err == nil && num > planNumber {
-				planNumber = num
+			if err == nil && num+1 > planNumber {
+				planNumber = num+1
 			}
 		}
 	}

@@ -13,7 +13,8 @@ import (
 )
 
 type GitHubConfig struct {
-	Pulls *Pulls `yaml:"pulls" json:"pulls" mapstructure:"pulls"`
+	Pulls *Pulls `yaml:"pulls,omitempty" json:"pulls,omitempty" mapstructure:"pulls,omitempty"`
+	Repos *Repos `yaml:"repos,omitempty" json:"repos,omitempty" mapstructure:"repos,omitempty"`
 	// Issues
 	// Repos
 	client *github.Client
@@ -21,9 +22,16 @@ type GitHubConfig struct {
 
 func (config *GitHubConfig) Validate() error {
 
-	// should only have pulls, issues, or repos
+	// TODO should only have pulls, issues, or repos
+
 	if config.Pulls != nil {
 		if err := config.Pulls.Validate(); err != nil {
+			return err
+		}
+	}
+
+	if config.Repos != nil {
+		if err := config.Repos.Validate(); err != nil {
 			return err
 		}
 	}
@@ -34,6 +42,10 @@ func (config *GitHubConfig) Validate() error {
 func (config *GitHubConfig) GetTargets() ([]string, error) {
 	if config.Pulls != nil && config.Pulls.Search != "" {
 		return config.Pulls.getTargets(config.client)
+	}
+
+	if config.Repos != nil && config.Repos.Search != "" {
+		return config.Repos.getTargets(config.client)
 	}
 
 	return nil, errors.New("Unknown search situation")

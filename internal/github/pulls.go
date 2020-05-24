@@ -12,19 +12,20 @@ import (
 )
 
 type PullStep struct {
-	AddLabels *AddLabels `yaml:"add_labels,omitempty" json:"add_labels,omitempty" mapstructure:"add_labels,omitempty"`
+	AddLabels   *AddLabels   `yaml:"add_labels,omitempty" json:"add_labels,omitempty" mapstructure:"add_labels,omitempty"`
+	RemoveLabel *RemoveLabel `yaml:"remove_label,omitempty" json:"remove_label,omitempty" mapstructure:"remove_label,omitempty"`
 
 	// Generic
 	Sleep *commands.Sleep `yaml:"sleep,omitempty" json:"sleep,omitempty" mapstructure:"sleep,omitempty"`
 }
 
-type Filter struct {
+type PullFilter struct {
 	Mergeable *bool `yaml:"mergeable,omitempty" json:"mergeable,omitempty" mapstructure:"mergeable,omitempty"`
 }
 
 type Pulls struct {
-	Search string  `yaml:"search" json:"search" mapstructure:"search"`
-	Filter *Filter `yaml:"filter" json:"filter" mapstructure:"filter"`
+	Search string      `yaml:"search" json:"search" mapstructure:"search"`
+	Filter *PullFilter `yaml:"filter" json:"filter" mapstructure:"filter"`
 	// markdown
 	Steps []*PullStep `yaml:"steps" json:"steps" mapstructure:"steps"`
 }
@@ -84,7 +85,7 @@ func (pulls *Pulls) getTargets(client *github.Client) ([]string, error) {
 }
 
 func parseIssueTarget(s string) (string, string, int) {
-	repoRe := regexp.MustCompile(`/([^/]+)/([^/]+)/(pull|issue)/(\d+)`)
+	repoRe := regexp.MustCompile(`/([^/]+)/([^/]+)/(pull|issue)/(\d+)$`)
 	sub := repoRe.FindAllStringSubmatch(s, -1)
 	owner := sub[0][1]
 	repo := sub[0][2]

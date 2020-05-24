@@ -5,5 +5,7 @@ pulls:
   steps:
     - add_labels:
         labels: [automerge]
+    - remove_label:
+        label: automerge
     - sleep:
-        duration: 32
+        duration: 2.5

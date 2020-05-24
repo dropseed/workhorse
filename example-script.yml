@@ -1,9 +1,0 @@
-pulls:
-  search: "is:open org:dropseed"
-  filter:
-    mergeable: true
-  steps:
-    - add_labels:
-        labels: [automerge]
-    - sleep:
-        duration: 2.5

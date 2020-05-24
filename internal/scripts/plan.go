@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/dropseed/workhorse/internal/github"
+	"github.com/dropseed/workhorse/internal/config"
 	"github.com/dropseed/workhorse/internal/meta"
 	"github.com/dropseed/workhorse/internal/utils"
 	"github.com/mitchellh/mapstructure"
@@ -23,13 +23,13 @@ func GetPlansDir() string {
 
 type Plan struct {
 	// version of release that ran it?
-	Script  string         `json:"script"`
-	Targets []string       `json:"targets"`
-	Config  *github.Config `json:"config"`
+	Script  string        `json:"script"`
+	Targets []string      `json:"targets"`
+	Config  config.Config `json:"config"`
 	id      string
 }
 
-func NewPlan(script string, config *github.Config) (*Plan, error) {
+func NewPlan(script string, config config.Config) (*Plan, error) {
 	return &Plan{
 		Script:  script,
 		Targets: []string{},
@@ -133,7 +133,7 @@ func (p *Plan) getID() string {
 			}
 			num, err := strconv.Atoi(name)
 			if err == nil && num+1 > planNumber {
-				planNumber = num+1
+				planNumber = num + 1
 			}
 		}
 	}

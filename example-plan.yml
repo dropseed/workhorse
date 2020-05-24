@@ -6,4 +6,4 @@ pulls:
     - add_labels:
         labels: [automerge]
     - sleep:
-        duration: 2.5
+        duration: 32

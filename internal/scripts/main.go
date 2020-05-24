@@ -66,7 +66,7 @@ func CreatePlan(script string) (*Plan, error) {
 		return nil, err
 	}
 
-	if err := plan.Load(); err != nil {
+	if err := plan.GetTargets(); err != nil {
 		return nil, err
 	}
 
@@ -93,15 +93,6 @@ func ExecutePlan(planName string) error {
 
 	if err := plan.Validate(); err != nil {
 		return err
-	}
-
-	if err := plan.Load(); err != nil {
-		return err
-	}
-
-	fmt.Printf("%d targets found\n", len(plan.Targets))
-	if len(plan.Targets) < 1 {
-		return nil
 	}
 
 	if err := plan.Execute(); err != nil {

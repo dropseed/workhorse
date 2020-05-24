@@ -83,7 +83,7 @@ func (p *Plan) Validate() error {
 	return nil
 }
 
-func (p *Plan) Load() error {
+func (p *Plan) GetTargets() error {
 	targets, err := p.Config.GetTargets()
 	if err != nil {
 		return err

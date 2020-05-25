@@ -25,10 +25,10 @@ type PullFilter struct {
 }
 
 type Pulls struct {
-	Search   string      `yaml:"search" json:"search" mapstructure:"search"`
-	Filter   *PullFilter `yaml:"filter" json:"filter" mapstructure:"filter"`
-	Markdown string      `yaml:"markdown" json:"markdown" mapstructure:"markdown"`
-	Steps    []*PullStep `yaml:"steps" json:"steps" mapstructure:"steps"`
+	Search   string      `yaml:"search,omitempty" json:"search,omitempty" mapstructure:"search,omitempty"`
+	Filter   *PullFilter `yaml:"filter,omitempty" json:"filter,omitempty" mapstructure:"filter,omitempty"`
+	Markdown string      `yaml:"markdown,omitempty" json:"markdown,omitempty" mapstructure:"markdown,omitempty"`
+	Steps    []*PullStep `yaml:"steps,omitempty" json:"steps,omitempty" mapstructure:"steps,omitempty"`
 	objs     map[string]*github.PullRequest
 }
 

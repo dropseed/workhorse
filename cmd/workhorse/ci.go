@@ -5,7 +5,6 @@ import (
 
 	"github.com/dropseed/workhorse/internal/git"
 	"github.com/dropseed/workhorse/internal/github"
-	"github.com/dropseed/workhorse/internal/meta"
 	"github.com/dropseed/workhorse/internal/scripts"
 	"github.com/dropseed/workhorse/internal/utils"
 	"github.com/spf13/cobra"
@@ -50,12 +49,13 @@ var ciPlanCmd = &cobra.Command{
 		}
 
 		planSlug := plan.GetSlug()
-		git.Commit(plan.GetPath(), fmt.Sprintf("Create %s plan %s", meta.AppName, planSlug))
+		title := fmt.Sprintf("%s: %s", planSlug, utils.ExtensionlessBasename(plan.Script))
+
+		git.Commit(plan.GetPath(), title)
 		git.Push(branch)
 
 		// TODO ideally we would only push if there is a difference, not force push every time
 
-		title := fmt.Sprintf("%s: %s", planSlug, utils.ExtensionlessBasename(plan.Script))
 		body := fmt.Sprintf("Merging this PR will run %s on the following PRs:\n\n", plan.Script)
 		lines, mdErr := plan.TargetsAsMarkdown()
 		if mdErr != nil {

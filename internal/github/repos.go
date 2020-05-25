@@ -22,10 +22,10 @@ type RepoFilter struct {
 }
 
 type Repos struct {
-	Search string      `yaml:"search" json:"search" mapstructure:"search"`
-	Filter *RepoFilter `yaml:"filter" json:"filter" mapstructure:"filter"`
+	Search string      `yaml:"search,omitempty" json:"search,omitempty" mapstructure:"search,omitempty"`
+	Filter *RepoFilter `yaml:"filter,omitempty" json:"filter,omitempty" mapstructure:"filter,omitempty"`
 	// markdown
-	Steps []*RepoStep `yaml:"steps" json:"steps" mapstructure:"steps"`
+	Steps []*RepoStep `yaml:"steps,omitempty" json:"steps,omitempty" mapstructure:"steps,omitempty"`
 }
 
 func (repos *Repos) Validate() error {

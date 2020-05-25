@@ -66,8 +66,16 @@ func CreatePlan(script string) (*Plan, error) {
 		return nil, err
 	}
 
-	if err := plan.GetTargets(); err != nil {
+	if err := plan.LoadTargets(); err != nil {
 		return nil, err
+	}
+
+	mds, err := plan.TargetsAsMarkdown()
+	if err != nil {
+		return nil, err
+	}
+	for _, md := range mds {
+		println(md)
 	}
 
 	fmt.Printf("%d targets found\n", len(plan.Targets))

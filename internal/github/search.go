@@ -2,7 +2,6 @@ package github
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"github.com/google/go-github/v31/github"
@@ -33,7 +32,6 @@ func searchIssues(client *github.Client, query string) ([]string, error) {
 	for _, i := range allIssues {
 		url := i.GetHTMLURL()
 		urls = append(urls, url)
-		fmt.Printf("%s\n", url)
 	}
 
 	// sort for diff consistency

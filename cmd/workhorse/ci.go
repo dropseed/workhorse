@@ -57,8 +57,12 @@ var ciPlanCmd = &cobra.Command{
 
 		title := fmt.Sprintf("%s: %s", planSlug, utils.ExtensionlessBasename(plan.Script))
 		body := fmt.Sprintf("Merging this PR will run %s on the following PRs:\n\n", plan.Script)
-		for _, target := range plan.Targets {
-			body = body + "- " + target + "\n"
+		lines, mdErr := plan.TargetsAsMarkdown()
+		if mdErr != nil {
+			printErrAndExitFailure(mdErr)
+		}
+		for _, line := range lines {
+			body = body + "- " + line + "\n"
 		}
 
 		if pr, err := github.PullRequest(base, branch, title, body); err != nil {

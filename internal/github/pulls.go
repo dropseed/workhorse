@@ -25,13 +25,20 @@ type PullFilter struct {
 }
 
 type Pulls struct {
-	Search string      `yaml:"search" json:"search" mapstructure:"search"`
-	Filter *PullFilter `yaml:"filter" json:"filter" mapstructure:"filter"`
-	// markdown
-	Steps []*PullStep `yaml:"steps" json:"steps" mapstructure:"steps"`
+	Search   string      `yaml:"search" json:"search" mapstructure:"search"`
+	Filter   *PullFilter `yaml:"filter" json:"filter" mapstructure:"filter"`
+	Markdown string      `yaml:"markdown" json:"markdown" mapstructure:"markdown"`
+	Steps    []*PullStep `yaml:"steps" json:"steps" mapstructure:"steps"`
+	objs     map[string]*github.PullRequest
 }
 
 func (pulls *Pulls) Validate() error {
+	if pulls.Markdown != "" {
+		if _, err := getTemplate(pulls.Markdown); err != nil {
+			return err
+		}
+	}
+
 	for _, step := range pulls.Steps {
 		cmds := commands.CommandStructFields(step)
 		if len(cmds) != 1 {
@@ -62,10 +69,9 @@ func (pulls *Pulls) getTargets(client *github.Client) ([]string, error) {
 
 	if pulls.Filter != nil {
 		for _, url := range pullUrls {
-			owner, repo, number := parseIssueTarget(url)
-			pull, _, ghErr := client.PullRequests.Get(context.Background(), owner, repo, number)
-			if ghErr != nil {
-				return nil, ghErr
+			pull, err := pulls.getOrFetchPull(url, client)
+			if err != nil {
+				return nil, err
 			}
 
 			match := true
@@ -83,6 +89,43 @@ func (pulls *Pulls) getTargets(client *github.Client) ([]string, error) {
 	}
 
 	return filteredUrls, nil
+}
+
+func (pulls *Pulls) targetsAsMarkdown(urls []string, client *github.Client) ([]string, error) {
+	md := []string{}
+	for _, url := range urls {
+		pull, err := pulls.getOrFetchPull(url, client)
+		if err != nil {
+			return nil, err
+		}
+		// template.New("pull").Parse()
+		markdown, err := toMarkdown(pulls.Markdown, pull)
+		if err != nil {
+			return nil, err
+		}
+		md = append(md, markdown)
+	}
+	return md, nil
+}
+
+func (pulls *Pulls) getOrFetchPull(url string, client *github.Client) (*github.PullRequest, error) {
+	if pulls.objs == nil {
+		pulls.objs = map[string]*github.PullRequest{}
+	}
+
+	if cached, ok := pulls.objs[url]; ok {
+		return cached, nil
+	}
+
+	owner, repo, number := parseIssueTarget(url)
+	pull, _, ghErr := client.PullRequests.Get(context.Background(), owner, repo, number)
+	if ghErr != nil {
+		return nil, ghErr
+	}
+
+	pulls.objs[url] = pull
+
+	return pull, nil
 }
 
 func parseIssueTarget(s string) (string, string, int) {

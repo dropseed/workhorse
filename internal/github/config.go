@@ -51,6 +51,14 @@ func (config *GitHubConfig) GetTargets() ([]string, error) {
 	return nil, errors.New("Unknown search situation")
 }
 
+func (config *GitHubConfig) TargetsAsMarkdown(targets []string) ([]string, error) {
+	if config.Pulls != nil && config.Pulls.Markdown != "" {
+		return config.Pulls.targetsAsMarkdown(targets, config.client)
+	}
+	// TODO repos
+	return targets, nil
+}
+
 func (config *GitHubConfig) ExecuteTargets(targets []string) error {
 	for _, target := range targets {
 		fmt.Printf("%s\n", target)

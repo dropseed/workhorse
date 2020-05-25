@@ -83,7 +83,7 @@ func (p *Plan) Validate() error {
 	return nil
 }
 
-func (p *Plan) GetTargets() error {
+func (p *Plan) LoadTargets() error {
 	targets, err := p.Config.GetTargets()
 	if err != nil {
 		return err
@@ -92,6 +92,14 @@ func (p *Plan) GetTargets() error {
 	p.Targets = targets
 
 	return nil
+}
+
+func (p *Plan) TargetsAsMarkdown() ([]string, error) {
+	mds, err := p.Config.TargetsAsMarkdown(p.Targets)
+	if err != nil {
+		return nil, err
+	}
+	return mds, nil
 }
 
 func (p *Plan) Execute() error {

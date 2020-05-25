@@ -2,6 +2,7 @@ pulls:
   search: "is:open org:dropseed"
   filter:
     mergeable: true
+  markdown: "{{.HTMLURL}} - {{.Title}}"
   steps:
     - add_labels:
         labels: [automerge]

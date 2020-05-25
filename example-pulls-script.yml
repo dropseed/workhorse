@@ -7,5 +7,6 @@ pulls:
         labels: [automerge]
     - remove_label:
         label: automerge
+    - close: {}
     - sleep:
         duration: 2.5

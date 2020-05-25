@@ -14,6 +14,7 @@ import (
 type PullStep struct {
 	AddLabels   *AddLabels   `yaml:"add_labels,omitempty" json:"add_labels,omitempty" mapstructure:"add_labels,omitempty"`
 	RemoveLabel *RemoveLabel `yaml:"remove_label,omitempty" json:"remove_label,omitempty" mapstructure:"remove_label,omitempty"`
+	Close       *Close       `yaml:"close,omitempty" json:"close,omitempty" mapstructure:"close,omitempty"`
 
 	// Generic
 	Sleep *commands.Sleep `yaml:"sleep,omitempty" json:"sleep,omitempty" mapstructure:"sleep,omitempty"`

@@ -25,7 +25,7 @@ type Plan struct {
 	// version of release that ran it?
 	Script  string               `json:"script"`
 	Targets []string             `json:"targets"`
-	Config  *github.GitHubConfig `json:"config"`
+	Config  *github.GitHubConfig `json:"config"` // TODO how to make this generic? json decode breaks
 	id      string
 }
 

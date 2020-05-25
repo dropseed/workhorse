@@ -11,7 +11,7 @@ import (
 
 func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 	ctx := context.Background()
-	client := newClient()
+	client := getClient()
 
 	remote := git.Remote()
 	parts := strings.Split(remote, "/")
@@ -49,14 +49,13 @@ func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 
 func getExisting(owner, repo, base, head string) (*github.PullRequest, error) {
 	ctx := context.Background()
-	client := newClient()
 
 	opt := &github.PullRequestListOptions{
 		State: "open",
 		Base:  base,
 		Head:  head,
 	}
-	prs, _, err := client.PullRequests.List(ctx, owner, repo, opt)
+	prs, _, err := getClient().PullRequests.List(ctx, owner, repo, opt)
 	if err != nil {
 		return nil, err
 	}

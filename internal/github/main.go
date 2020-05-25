@@ -8,6 +8,8 @@ import (
 	"golang.org/x/oauth2"
 )
 
+var client *github.Client
+
 func getToken() string {
 	if s := os.Getenv("WORKHORSE_TOKEN"); s != "" {
 		return s
@@ -18,11 +20,16 @@ func getToken() string {
 	return ""
 }
 
-func newClient() *github.Client {
+func getClient() *github.Client {
+	if client != nil {
+		return client
+	}
+
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
 		&oauth2.Token{AccessToken: getToken()},
 	)
 	tc := oauth2.NewClient(ctx, ts)
-	return github.NewClient(tc)
+	client = github.NewClient(tc)
+	return client
 }

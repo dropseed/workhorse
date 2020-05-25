@@ -10,8 +10,7 @@ type RemoveLabel struct {
 
 func (cmd *RemoveLabel) Run(target string) error {
 	owner, repo, number := parseIssueTarget(target)
-	client := newClient()
-	_, err := client.Issues.RemoveLabelForIssue(context.Background(), owner, repo, number, cmd.Label)
+	_, err := getClient().Issues.RemoveLabelForIssue(context.Background(), owner, repo, number, cmd.Label)
 	return err
 }
 

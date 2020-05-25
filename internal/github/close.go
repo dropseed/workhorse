@@ -11,12 +11,11 @@ type Close struct {
 
 func (cmd *Close) Run(target string) error {
 	owner, repo, number := parseIssueTarget(target)
-	client := newClient()
 	state := "closed"
 	issue := &github.IssueRequest{
 		State: &state,
 	}
-	_, _, err := client.Issues.Edit(context.Background(), owner, repo, number, issue)
+	_, _, err := getClient().Issues.Edit(context.Background(), owner, repo, number, issue)
 	return err
 }
 

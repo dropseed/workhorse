@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/dropseed/workhorse/internal/commands"
-	"github.com/google/go-github/v31/github"
 	"github.com/mitchellh/mapstructure"
 	"gopkg.in/yaml.v2"
 )
@@ -17,7 +16,6 @@ type GitHubConfig struct {
 	Repos *Repos `yaml:"repos,omitempty" json:"repos,omitempty" mapstructure:"repos,omitempty"`
 	// Issues
 	// Repos
-	client *github.Client
 }
 
 func (config *GitHubConfig) Validate() error {
@@ -41,11 +39,11 @@ func (config *GitHubConfig) Validate() error {
 
 func (config *GitHubConfig) GetTargets() ([]string, error) {
 	if config.Pulls != nil && config.Pulls.Search != "" {
-		return config.Pulls.getTargets(config.client)
+		return config.Pulls.getTargets()
 	}
 
 	if config.Repos != nil && config.Repos.Search != "" {
-		return config.Repos.getTargets(config.client)
+		return config.Repos.getTargets()
 	}
 
 	return nil, errors.New("Unknown search situation")
@@ -53,7 +51,7 @@ func (config *GitHubConfig) GetTargets() ([]string, error) {
 
 func (config *GitHubConfig) TargetsAsMarkdown(targets []string) ([]string, error) {
 	if config.Pulls != nil && config.Pulls.Markdown != "" {
-		return config.Pulls.targetsAsMarkdown(targets, config.client)
+		return config.Pulls.targetsAsMarkdown(targets)
 	}
 	// TODO repos
 	return targets, nil
@@ -113,8 +111,6 @@ func newConfigFromMap(m map[string]interface{}) (*GitHubConfig, error) {
 	if err = mapDecoder.Decode(m); err != nil {
 		return nil, err
 	}
-
-	config.client = newClient()
 
 	return config, nil
 }

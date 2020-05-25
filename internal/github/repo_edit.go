@@ -12,11 +12,10 @@ type RepoEdit struct {
 
 func (cmd *RepoEdit) Run(target string) error {
 	owner, repo := parseRepoTarget(target)
-	client := newClient()
 	repoObj := &github.Repository{
 		DeleteBranchOnMerge: cmd.DeleteBranchOnMerge,
 	}
-	_, _, err := client.Repositories.Edit(context.Background(), owner, repo, repoObj)
+	_, _, err := getClient().Repositories.Edit(context.Background(), owner, repo, repoObj)
 	return err
 }
 

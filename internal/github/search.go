@@ -7,7 +7,7 @@ import (
 	"github.com/google/go-github/v31/github"
 )
 
-func searchIssues(client *github.Client, query string) ([]string, error) {
+func searchIssues(query string) ([]string, error) {
 	opt := &github.SearchOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 		Sort:        "created",
@@ -16,7 +16,7 @@ func searchIssues(client *github.Client, query string) ([]string, error) {
 
 	var allIssues []*github.Issue
 	for {
-		result, resp, err := client.Search.Issues(context.Background(), query, opt)
+		result, resp, err := getClient().Search.Issues(context.Background(), query, opt)
 		if err != nil {
 			return nil, err
 		}
@@ -40,7 +40,7 @@ func searchIssues(client *github.Client, query string) ([]string, error) {
 	return urls, nil
 }
 
-func searchRepos(client *github.Client, query string) ([]*github.Repository, error) {
+func searchRepos(query string) ([]*github.Repository, error) {
 	opt := &github.SearchOptions{
 		ListOptions: github.ListOptions{PerPage: 100},
 		Sort:        "created",
@@ -49,7 +49,7 @@ func searchRepos(client *github.Client, query string) ([]*github.Repository, err
 
 	var allRepos []*github.Repository
 	for {
-		result, resp, err := client.Search.Repositories(context.Background(), query, opt)
+		result, resp, err := getClient().Search.Repositories(context.Background(), query, opt)
 		if err != nil {
 			return nil, err
 		}

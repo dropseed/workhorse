@@ -11,8 +11,7 @@ type AddLabels struct {
 
 func (cmd *AddLabels) Run(target string) error {
 	owner, repo, number := parseIssueTarget(target)
-	client := newClient()
-	_, _, err := client.Issues.AddLabelsToIssue(context.Background(), owner, repo, number, cmd.Labels)
+	_, _, err := getClient().Issues.AddLabelsToIssue(context.Background(), owner, repo, number, cmd.Labels)
 	return err
 }
 

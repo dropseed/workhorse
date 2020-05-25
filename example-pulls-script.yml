@@ -9,5 +9,8 @@ pulls:
     - remove_label:
         label: automerge
     - close: {}
+    - merge:
+        method: squash
+    - delete_branch: {}
     - sleep:
         duration: 2.5

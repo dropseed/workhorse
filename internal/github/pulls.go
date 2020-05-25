@@ -11,10 +11,14 @@ import (
 	"github.com/google/go-github/v31/github"
 )
 
+var pullsCache map[string]*github.PullRequest
+
 type PullStep struct {
-	AddLabels   *AddLabels   `yaml:"add_labels,omitempty" json:"add_labels,omitempty" mapstructure:"add_labels,omitempty"`
-	RemoveLabel *RemoveLabel `yaml:"remove_label,omitempty" json:"remove_label,omitempty" mapstructure:"remove_label,omitempty"`
-	Close       *Close       `yaml:"close,omitempty" json:"close,omitempty" mapstructure:"close,omitempty"`
+	AddLabels    *AddLabels    `yaml:"add_labels,omitempty" json:"add_labels,omitempty" mapstructure:"add_labels,omitempty"`
+	RemoveLabel  *RemoveLabel  `yaml:"remove_label,omitempty" json:"remove_label,omitempty" mapstructure:"remove_label,omitempty"`
+	Close        *Close        `yaml:"close,omitempty" json:"close,omitempty" mapstructure:"close,omitempty"`
+	Merge        *Merge        `yaml:"merge,omitempty" json:"merge,omitempty" mapstructure:"merge,omitempty"`
+	DeleteBranch *DeleteBranch `yaml:"delete_branch,omitempty" json:"delete_branch,omitempty" mapstructure:"delete_branch,omitempty"`
 
 	// Generic
 	Sleep *commands.Sleep `yaml:"sleep,omitempty" json:"sleep,omitempty" mapstructure:"sleep,omitempty"`
@@ -29,7 +33,6 @@ type Pulls struct {
 	Filter   *PullFilter `yaml:"filter,omitempty" json:"filter,omitempty" mapstructure:"filter,omitempty"`
 	Markdown string      `yaml:"markdown,omitempty" json:"markdown,omitempty" mapstructure:"markdown,omitempty"`
 	Steps    []*PullStep `yaml:"steps,omitempty" json:"steps,omitempty" mapstructure:"steps,omitempty"`
-	objs     map[string]*github.PullRequest
 }
 
 func (pulls *Pulls) Validate() error {
@@ -54,13 +57,13 @@ func (pulls *Pulls) Validate() error {
 	return nil
 }
 
-func (pulls *Pulls) getTargets(client *github.Client) ([]string, error) {
+func (pulls *Pulls) getTargets() ([]string, error) {
 	query := pulls.Search
 	if strings.Index(query, "is:pr") == -1 {
 		query = "is:pr " + query
 	}
 
-	pullUrls, err := searchIssues(client, query)
+	pullUrls, err := searchIssues(query)
 	if err != nil {
 		return nil, err
 	}
@@ -69,7 +72,7 @@ func (pulls *Pulls) getTargets(client *github.Client) ([]string, error) {
 
 	if pulls.Filter != nil {
 		for _, url := range pullUrls {
-			pull, err := pulls.getOrFetchPull(url, client)
+			pull, err := getOrFetchPull(url)
 			if err != nil {
 				return nil, err
 			}
@@ -91,10 +94,10 @@ func (pulls *Pulls) getTargets(client *github.Client) ([]string, error) {
 	return filteredUrls, nil
 }
 
-func (pulls *Pulls) targetsAsMarkdown(urls []string, client *github.Client) ([]string, error) {
+func (pulls *Pulls) targetsAsMarkdown(urls []string) ([]string, error) {
 	md := []string{}
 	for _, url := range urls {
-		pull, err := pulls.getOrFetchPull(url, client)
+		pull, err := getOrFetchPull(url)
 		if err != nil {
 			return nil, err
 		}
@@ -108,22 +111,22 @@ func (pulls *Pulls) targetsAsMarkdown(urls []string, client *github.Client) ([]s
 	return md, nil
 }
 
-func (pulls *Pulls) getOrFetchPull(url string, client *github.Client) (*github.PullRequest, error) {
-	if pulls.objs == nil {
-		pulls.objs = map[string]*github.PullRequest{}
+func getOrFetchPull(url string) (*github.PullRequest, error) {
+	if pullsCache == nil {
+		pullsCache = map[string]*github.PullRequest{}
 	}
 
-	if cached, ok := pulls.objs[url]; ok {
+	if cached, ok := pullsCache[url]; ok {
 		return cached, nil
 	}
 
 	owner, repo, number := parseIssueTarget(url)
-	pull, _, ghErr := client.PullRequests.Get(context.Background(), owner, repo, number)
+	pull, _, ghErr := getClient().PullRequests.Get(context.Background(), owner, repo, number)
 	if ghErr != nil {
 		return nil, ghErr
 	}
 
-	pulls.objs[url] = pull
+	pullsCache[url] = pull
 
 	return pull, nil
 }

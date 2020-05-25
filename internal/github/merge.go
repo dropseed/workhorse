@@ -7,19 +7,19 @@ import (
 )
 
 type Merge struct {
-	Message string `yaml:"message" json:"message" mapstructure:"message"`
-	Method  string `yaml:"method" json:"method" mapstructure:"method"`
+	// Message string `yaml:"message" json:"message" mapstructure:"message"`
+	Method string `yaml:"method" json:"method" mapstructure:"method"`
 }
 
 func (cmd *Merge) Run(target string) error {
+	// pull, err := getOrFetchPull(target)
 	owner, repo, number := parseIssueTarget(target)
-	client := newClient()
 	opts := &github.PullRequestOptions{
-		CommitTitle: "",
-		SHA:         "",
+		// CommitTitle: pull.GetTitle(), // TODO could be an option
+		// SHA:         pull.Head.GetSHA(),
 		MergeMethod: cmd.Method,
 	}
-	_, _, err := client.PullRequests.Merge(context.Background(), owner, repo, number, cmd.Message, opts)
+	_, _, err := getClient().PullRequests.Merge(context.Background(), owner, repo, number, "", opts)
 	return err
 }
 

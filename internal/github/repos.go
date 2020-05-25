@@ -44,10 +44,10 @@ func (repos *Repos) Validate() error {
 	return nil
 }
 
-func (repos *Repos) getTargets(client *github.Client) ([]string, error) {
+func (repos *Repos) getTargets() ([]string, error) {
 	query := repos.Search
 
-	allRepos, err := searchRepos(client, query)
+	allRepos, err := searchRepos(query)
 	if err != nil {
 		return nil, err
 	}

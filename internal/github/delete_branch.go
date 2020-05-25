@@ -11,7 +11,7 @@ type DeleteBranch struct {
 func (cmd *DeleteBranch) Run(target string) error {
 	pull, err := getOrFetchPull(target)
 	owner, repo, _ := parseIssueTarget(target)
-	ref := pull.GetBase().GetRef()
+	ref := "heads/" + pull.GetHead().GetRef()
 	if cmd.Name != "" {
 		ref = "heads/" + cmd.Name
 	}

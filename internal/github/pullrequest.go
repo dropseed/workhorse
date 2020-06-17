@@ -49,11 +49,10 @@ func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 
 func getExisting(owner, repo, base, head string) (*github.PullRequest, error) {
 	ctx := context.Background()
-
 	opt := &github.PullRequestListOptions{
 		State: "open",
 		Base:  base,
-		Head:  head,
+		Head:  owner + ": " + head, // needs to specify user/org
 	}
 	prs, _, err := getClient().PullRequests.List(ctx, owner, repo, opt)
 	if err != nil {
@@ -61,7 +60,11 @@ func getExisting(owner, repo, base, head string) (*github.PullRequest, error) {
 	}
 
 	if len(prs) != 1 {
-		return nil, fmt.Errorf("Found %d matches for existing pull request", len(prs))
+		extra := ""
+		for _, pr := range prs {
+			extra = extra + "\n- " + pr.GetHTMLURL()
+		}
+		return nil, fmt.Errorf("Found %d matches for existing pull request\n%s", len(prs), extra)
 	}
 
 	return prs[0], nil

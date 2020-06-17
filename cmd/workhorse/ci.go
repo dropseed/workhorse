@@ -26,19 +26,28 @@ var ciPlanCmd = &cobra.Command{
 			printErrAndExitFailure(err)
 		}
 
+		base := "master"
+		branch := git.CleanBranchName(plan.Script)
+
 		if len(plan.Targets) == 0 {
-			println("No targets found for plan")
+			println("No targets found")
+
+			owner, repo := github.OwnerRepoFromRemote()
+			pr, _ := github.FindPullRequest(owner, repo, base, branch)
+			if pr != nil {
+				println("Closing open pull request %s", pr.GetHTMLURL())
+				if err := github.ClosePullRequest(pr); err != nil {
+					printErrAndExitFailure(err)
+				}
+			}
+
 			return
 		}
-
-		branch := git.CleanBranchName(plan.Script)
-		fmt.Printf("Branch: %s\n", branch)
-
-		base := "master"
 
 		// should always go off of latest master
 		// so delete if exists
 		// then create and run plan (will increment plan number too if something else merged - conflicts ARE conflicts and you want things to run in order and force them updating)
+		fmt.Printf("Branch: %s\n", branch)
 		if err := git.CreateBranch(branch); err != nil {
 			if err := git.DeleteBranch(branch); err != nil {
 				printErrAndExitFailure(err)

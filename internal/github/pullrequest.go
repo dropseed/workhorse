@@ -9,10 +9,7 @@ import (
 	"github.com/google/go-github/v31/github"
 )
 
-func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
-	ctx := context.Background()
-	client := getClient()
-
+func OwnerRepoFromRemote() (string, string) {
 	remote := git.Remote()
 	parts := strings.Split(remote, "/")
 	owner := parts[len(parts)-2]
@@ -20,6 +17,14 @@ func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 	if strings.HasSuffix(repo, ".git") {
 		repo = repo[:len(repo)-4]
 	}
+	return owner, repo
+}
+
+func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
+	ctx := context.Background()
+	client := getClient()
+
+	owner, repo := OwnerRepoFromRemote()
 
 	pull := &github.NewPullRequest{
 		Title: &title,
@@ -31,7 +36,7 @@ func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 	if err != nil {
 		// if strings.Index(string(resp.Body), "pull request already exists") != -1 {
 		// just assume exists err for now
-		existing, err := getExisting(owner, repo, base, head)
+		existing, err := FindPullRequest(owner, repo, base, head)
 		if err != nil {
 			return nil, err
 		}
@@ -47,7 +52,7 @@ func PullRequest(base, head, title, body string) (*github.PullRequest, error) {
 	return pr, nil
 }
 
-func getExisting(owner, repo, base, head string) (*github.PullRequest, error) {
+func FindPullRequest(owner, repo, base, head string) (*github.PullRequest, error) {
 	ctx := context.Background()
 	opt := &github.PullRequestListOptions{
 		State: "open",
@@ -68,4 +73,11 @@ func getExisting(owner, repo, base, head string) (*github.PullRequest, error) {
 	}
 
 	return prs[0], nil
+}
+
+func ClosePullRequest(pr *github.PullRequest) error {
+	state := "closed"
+	pr.State = &state
+	_, _, err := getClient().PullRequests.Edit(context.Background(), pr.GetBase().GetUser().GetLogin(), pr.GetBase().GetRepo().GetName(), pr.GetNumber(), pr)
+	return err
 }

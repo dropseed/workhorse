@@ -35,7 +35,7 @@ var ciPlanCmd = &cobra.Command{
 			owner, repo := github.OwnerRepoFromRemote()
 			pr, _ := github.FindPullRequest(owner, repo, base, branch)
 			if pr != nil {
-				println("Closing open pull request %s", pr.GetHTMLURL())
+				println("Closing open pull request ", pr.GetHTMLURL())
 				if err := github.ClosePullRequest(pr); err != nil {
 					printErrAndExitFailure(err)
 				}

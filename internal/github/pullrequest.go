@@ -57,7 +57,7 @@ func FindPullRequest(owner, repo, base, head string) (*github.PullRequest, error
 	opt := &github.PullRequestListOptions{
 		State: "open",
 		Base:  base,
-		Head:  owner + ": " + head, // needs to specify user/org
+		Head:  owner + ":" + head, // needs to specify user/org
 	}
 	prs, _, err := getClient().PullRequests.List(ctx, owner, repo, opt)
 	if err != nil {

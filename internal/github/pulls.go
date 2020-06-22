@@ -25,7 +25,8 @@ type PullStep struct {
 }
 
 type PullFilter struct {
-	Mergeable *bool `yaml:"mergeable,omitempty" json:"mergeable,omitempty" mapstructure:"mergeable,omitempty"`
+	Mergeable      *bool   `yaml:"mergeable,omitempty" json:"mergeable,omitempty" mapstructure:"mergeable,omitempty"`
+	MergeableState *string `yaml:"mergeable_state,omitempty" json:"mergeable_state,omitempty" mapstructure:"mergeable_state,omitempty"`
 }
 
 type Pulls struct {
@@ -80,6 +81,10 @@ func (pulls *Pulls) getTargets() ([]string, error) {
 			match := true
 
 			if pulls.Filter.Mergeable != nil && *pulls.Filter.Mergeable != pull.GetMergeable() {
+				match = false
+			}
+
+			if pulls.Filter.MergeableState != nil && *pulls.Filter.MergeableState != pull.GetMergeableState() {
 				match = false
 			}
 

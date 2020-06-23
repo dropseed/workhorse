@@ -98,7 +98,7 @@ var ciExecuteCmd = &cobra.Command{
 			}
 
 			for _, path := range lastFiles {
-				fmt.Printf("Executing plan: %s", path)
+				fmt.Printf("Executing plan: %s\n", path)
 				if err := scripts.ExecutePlan(path); err != nil {
 					printErrAndExitFailure(err)
 				}

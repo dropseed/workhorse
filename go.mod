@@ -3,6 +3,7 @@ module github.com/dropseed/workhorse
 go 1.14
 
 require (
+	github.com/cenkalti/backoff/v4 v4.0.2
 	github.com/google/go-github/v31 v31.0.0
 	github.com/mitchellh/mapstructure v1.1.2
 	github.com/spf13/cobra v1.0.0

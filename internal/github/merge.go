@@ -2,13 +2,16 @@ package github
 
 import (
 	"context"
+	"time"
 
+	"github.com/cenkalti/backoff/v4"
 	"github.com/google/go-github/v31/github"
 )
 
 type Merge struct {
 	// Message string `yaml:"message" json:"message" mapstructure:"message"`
 	Method string `yaml:"method" json:"method" mapstructure:"method"`
+	Retry  bool   `yaml:"retry,omitempty" json:"retry,omitempty" mapstructure:"retry,omitempty"`
 }
 
 func (cmd *Merge) Run(target string) error {
@@ -19,7 +22,19 @@ func (cmd *Merge) Run(target string) error {
 		// SHA:         pull.Head.GetSHA(),
 		MergeMethod: cmd.Method,
 	}
-	_, _, err := getClient().PullRequests.Merge(context.Background(), owner, repo, number, "", opts)
+	operation := func() error {
+		_, _, err := getClient().PullRequests.Merge(context.Background(), owner, repo, number, "", opts)
+		return err
+	}
+
+	if cmd.Retry {
+		boff := backoff.NewExponentialBackOff()
+		boff.MaxElapsedTime = 5 * time.Minute
+		err := backoff.Retry(operation, boff)
+		return err
+	}
+
+	err := operation()
 	return err
 }
 

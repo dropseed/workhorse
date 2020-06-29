@@ -29,7 +29,7 @@ func (cmd *Merge) Run(target string) error {
 
 	if cmd.Retry {
 		boff := backoff.NewExponentialBackOff()
-		boff.MaxElapsedTime = 5 * time.Minute
+		boff.MaxElapsedTime = 10 * time.Minute
 		err := backoff.Retry(operation, boff)
 		return err
 	}

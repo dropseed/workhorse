@@ -1,2 +1,2 @@
-#!/bin/sh -ex
-go run ./cmd/workhorse $@
+#!/bin/sh -e
+WORKHORSE_DIR=workhorse-test poetry run workhorse $@

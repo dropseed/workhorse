@@ -1,2 +1,2 @@
 #!/bin/sh -ex
-./scripts/test
+poetry run black workhorse --check

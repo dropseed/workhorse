@@ -11,25 +11,21 @@ class APISession(Session):
     def request(self, method, url, *args, **kwargs):
         next_url = urljoin(self.base_url, url)
         paginate = kwargs.pop("paginate", False)
-        limit = kwargs.pop("limit", -1)
         paginated_data = []
 
         while next_url:
-            print(f"{method} {next_url}")
             response = super().request(method, next_url, *args, **kwargs)
+            print(f"{method} {response.status_code} {next_url}")
 
             if isinstance(paginate, str):
-                paginated_data = response.json().get(paginate, [])
+                paginated_data += response.json().get(paginate, [])
             else:
-                paginated_data = response.json()
+                paginated_data += response.json()
 
-            if paginate and (limit > len(paginated_data) or limit < 0):
+            if paginate:
                 next_url = response.links.get("next", {}).get("url", None)
             else:
                 next_url = None
-
-        if limit > -1:
-            paginated_data = paginated_data[:limit]
 
         # custom property for paginated, combined data
         response.paginated_data = paginated_data

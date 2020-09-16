@@ -1,16 +1,15 @@
 import inspect
 
 from marshmallow import Schema, fields, ValidationError
-
-from .commands import available_pull_commands, available_repo_commands
+from .models import Repo, Pull
 
 
 def validate_pull_commands(d):
-    _validate_dict_commands(d, available_pull_commands)
+    _validate_dict_commands(d, Pull("").get_commands())
 
 
 def validate_repo_commands(d):
-    _validate_dict_commands(d, available_repo_commands)
+    _validate_dict_commands(d, Repo("").get_commands())
 
 
 def _validate_dict_commands(d, commands):
@@ -23,7 +22,6 @@ def _validate_dict_commands(d, commands):
         input_params = list(data.keys())
 
         available_params = list(inspect.signature(func).parameters.keys())
-        available_params.remove("target_url")  # target_url is always implied
         available_params.append(
             "retry"
         )  # retry is always available, but actually outside the function itself

@@ -6,11 +6,10 @@ import yaml
 import click
 
 from .schema import PlanSchema, ExecutionSchema
-from .targets import find_targets, filter_targets
 from .api import session
 from .user_input import template
-from .commands import available_pull_commands
 from . import git
+from .models import model_for_url
 
 
 WORKHORSE_PREFIX = os.environ.get("WORKHORSE_PREFIX", "WH-")
@@ -28,6 +27,18 @@ def find(name, subdir, extension):
     for s in searches:
         if os.path.exists(s) and os.path.isfile(s):
             return s
+
+
+def find_targets(query, search_type):
+    response = session.get(
+        f"/search/{search_type}",
+        params={"q": query, "sort": "created", "order": "desc"},
+        paginate="items",
+    )
+    response.raise_for_status()
+
+    targets = [model_for_url(x["html_url"]) for x in response.paginated_data]
+    return targets
 
 
 @click.group()
@@ -53,7 +64,7 @@ def plan(name, token):
 
     click.echo(f"Loading plan at {filename}")
 
-    p = PlanSchema().load(data)
+    p = PlanSchema().dump(data)
 
     if "pulls" in p:
         query = p["pulls"]["search"]
@@ -68,13 +79,16 @@ def plan(name, token):
         plan_root = p["repos"]
 
     click.echo(f'Searching GitHub for "{query}"')
-    targets = find_targets(query, search_type, plan_root["limit"])
+    targets = find_targets(query, search_type)
+    click.echo(f"{len(targets)} matching search")
 
-    for target in targets:
-        target.update_from_api()
+    targets = [x for x in targets if x.matches_filter(plan_root["filter"])]
+    click.echo(f"{len(targets)} matching filter")
 
-    targets = filter_targets(targets, plan_root["filter"])
-    click.echo(f"{len(targets)} matching search and filter")
+    limit = plan_root["limit"]
+    if limit > -1:
+        click.secho(f"Limiting to {limit}", fg="yellow")
+        targets = targets[:limit]
 
     print("")
     for t in targets:
@@ -135,6 +149,7 @@ def execute(name, token):
 
     for target_url in execution["targets"]:
         click.secho(target_url, bold=True)
+        commands = model_for_url(target_url).get_commands()
 
         for step in execution["plan"].get("pulls", {}).get("steps", []):
             for step_name, step_data in step.items():
@@ -147,7 +162,7 @@ def execute(name, token):
                 # str to check Exception str against - if contains, let it go
                 try:
                     print(f"  - {step_name} with {step_data}")
-                    result = available_pull_commands[step_name](target_url, **step_data)
+                    result = commands[step_name](**step_data)
                 except Exception as e:
                     click.secho(str(e), fg="red")
                     if allow_error and allow_error in str(e):

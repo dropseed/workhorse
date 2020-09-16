@@ -19,13 +19,24 @@ def filter_targets(targets, filter):
     return [target for target in targets if Expression(filter, target.data).compile()]
 
 
+def get_api_url(url):
+    """Get a API URL (without base) for a given HTML URL or API URL"""
+    match = re.search(r"/([^/]+)/([^/]+)/(pull|issue)/(\d+)$", url)
+    return f"repos/{match[1]}/{match[2]}/{match[3]}s/{match[4]}"
+
+
+# def get_repo_api_url(url):
+#     """Get a API URL (without base) for a given HTML URL or API URL"""
+#     match = re.search(r"/([^/]+)/([^/]+)/", url)
+#     return f"repos/{match[1]}/{match[2]}"
+
+
 class Target:
     def __init__(self, url):
         self.url = url
         self.data = {}
 
-        match = re.search(r"/([^/]+)/([^/]+)/(pull|issue)/(\d+)$", self.url)
-        self.api_url = f"repos/{match[1]}/{match[2]}/{match[3]}s/{match[4]}"
+        self.api_url = get_api_url(self.url)
 
     def update_from_api(self):
         response = session.get(self.api_url)

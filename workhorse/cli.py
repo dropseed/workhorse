@@ -1,11 +1,12 @@
 import os
 import json
+import re
 
 import yaml
 import click
 
 from .schema import PlanSchema, ExecutionSchema
-from .targets import find_targets, filter_targets, Target
+from .targets import find_targets, filter_targets
 from .api import session
 from .user_input import template
 from .commands import available_pull_commands
@@ -49,10 +50,9 @@ def plan(name, token):
     with open(filename, "r") as f:
         data = yaml.safe_load(f)
 
-    p = PlanSchema().load(data)
-    print(p)
+    click.echo(f"Loading plan at {filename}")
 
-    # custom validation?
+    p = PlanSchema().load(data)
 
     if "pulls" in p:
         query = p["pulls"]["search"]
@@ -63,6 +63,7 @@ def plan(name, token):
         query = p["repos"]["search"]
         search_type = "repositories"
 
+    click.echo(f'Searching GitHub for "{query}"')
     targets = find_targets(query, search_type)
 
     for target in targets:
@@ -70,19 +71,25 @@ def plan(name, token):
 
     targets = filter_targets(targets, p["pulls"]["filter"])
 
+    click.echo(f"{len(targets)} matching search and filter")
+
+    print("")
     for t in targets:
         output = template.render(p["pulls"]["markdown"], t.data)
         print(output)
+    print("")
 
     if len(targets) < 1:
         click.secho("No targets found", fg="green")
         return
 
-    execution = ExecutionSchema().load({
-        "created_from": filename,
-        "plan": p,
-        "targets": [target.url for target in targets],
-    })
+    execution = ExecutionSchema().load(
+        {
+            "created_from": os.path.relpath(filename, os.getcwd()),
+            "plan": p,
+            "targets": [target.url for target in targets],
+        }
+    )
 
     execs_dir = os.path.join(WORKHORSE_DIR, "execs")
     if not os.path.exists(execs_dir):
@@ -93,17 +100,24 @@ def plan(name, token):
         numbers = re.search("\d+", existing)
         if not numbers:
             continue
-        latest = max(latest, numbers[0])
+        latest = max(latest, int(numbers[0]))
 
     exec_number = latest + 1
-
-    with open(os.path.join(execs_dir, f"{WORKHORSE_PREFIX}{exec_number}.yml"), "w+") as f:
+    exec_filename = os.path.join(execs_dir, f"{WORKHORSE_PREFIX}{exec_number}.json")
+    with open(exec_filename, "w+") as f:
         json.dump(execution, f, indent=2, sort_keys=True)
+
+    click.secho("Saved for future execution!", fg="green")
+    click.echo(exec_filename)
 
 
 @cli.command()
+@click.option("--token", envvar="GITHUB_TOKEN", required=True)
 @click.argument("name")
-def execute(name):
+def execute(name, token):
+
+    session.set_token(token)
+
     filename = find(name, "execs", ".json")
     if not filename:
         click.secho(f'Execution "{name}" not found', fg="red")
@@ -115,13 +129,29 @@ def execute(name):
     execution = ExecutionSchema().load(data)
 
     for target_url in execution["targets"]:
-        print(target_url)
-        target = Target(target_url)
+        click.secho(target_url, bold=True)
 
         for step in execution["plan"].get("pulls", {}).get("steps", []):
             for step_name, step_data in step.items():
-                # if func receives target_url (how to tell?) then pass it too
-                result = available_pull_commands[step_name](**step_data)
+                retry = step_data.pop("retry", False)
+                # if retry True, automated
+                # if retry number, retry that many times w/ auto backoff
+                # if retry list of numbers, that is the backoff
+
+                allow_error = step_data.pop("allow_error", False)
+                # str to check Exception str against - if contains, let it go
+                try:
+                    print(f"  - {step_name} with {step_data}")
+                    result = available_pull_commands[step_name](target_url, **step_data)
+                except Exception as e:
+                    click.secho(str(e), fg="red")
+                    if allow_error and allow_error in str(e):
+                        click.secho('Error allowed "{allow_error}"', fg="green")
+                    # elif retry:
+                    else:
+                        raise e
+
+        print("")
 
 
 @cli.group()

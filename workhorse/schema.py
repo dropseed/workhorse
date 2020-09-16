@@ -19,24 +19,44 @@ def _validate_dict_commands(d, commands):
             raise ValidationError(f"{name} is not an available command")
 
         func = commands[name]
-        input_params = data.keys()
-        available_params = inspect.signature(func).parameters.keys()
+
+        input_params = list(data.keys())
+
+        available_params = list(inspect.signature(func).parameters.keys())
+        available_params.remove("target_url")  # target_url is always implied
+        available_params.append(
+            "retry"
+        )  # retry is always available, but actually outside the function itself
+        available_params.append(
+            "allow_error"
+        )  # retry is always available, but actually outside the function itself
+
         if not set(input_params).issubset(set(available_params)):
-            raise ValidationError(f"Options for {name} don't match what is available:\n\n{input_params}\n\n{available_params}")
+            raise ValidationError(
+                f"Options for {name} don't match what is available:\n\n{input_params}\n\n{available_params}"
+            )
 
 
 class PullsSchema(Schema):
     search = fields.Str(required=True)
     filter = fields.Str()
-    markdown = fields.Str(default="{{ title }}")
-    steps = fields.List(fields.Dict(keys=fields.Str(), values=fields.Dict(), validate=validate_pull_commands))
+    markdown = fields.Str(default="- {{ html_url }}")
+    steps = fields.List(
+        fields.Dict(
+            keys=fields.Str(), values=fields.Dict(), validate=validate_pull_commands
+        )
+    )
 
 
 class ReposSchema(Schema):
     search = fields.Str(required=True)
     filter = fields.Str()
-    markdown = fields.Str(default="{{ full_name }}")
-    steps = fields.List(fields.Dict(keys=fields.Str(), values=fields.Dict(), validate=validate_repo_commands))
+    markdown = fields.Str(default="- {{ html_url }}")
+    steps = fields.List(
+        fields.Dict(
+            keys=fields.Str(), values=fields.Dict(), validate=validate_repo_commands
+        )
+    )
 
 
 class PlanSchema(Schema):

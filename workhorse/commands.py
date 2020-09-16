@@ -1,4 +1,6 @@
+import os
 import subprocess
+import tempfile
 
 from .api import session
 from .targets import get_api_url
@@ -55,15 +57,28 @@ def delete_pull_branch(target_url):
     response.raise_for_status()
 
 
+def clone_repo(target_url):
+    into_dir = tempfile.TemporaryDirectory(prefix="workhorse")
+    subprocess.check_call(["git", "clone", target_url], cwd=into_dir)
+
+
+def create_pull(target_url, branch):
+    pull_url = get_api_url(target_url)
+    session = response.post()
+
+
 available_pull_commands = {
     "sleep": sleep,
     "shell": shell,
-    "merge_pull": merge_pull,
-    "update_pull": update_pull,
-    "delete_pull_branch": delete_pull_branch,
+    "merge": merge_pull,
+    "update": update_pull,
+    "delete_branch": delete_pull_branch,
 }
+
 
 available_repo_commands = {
     "sleep": sleep,
     "shell": shell,
+    "clone": clone_repo,
+    "create_pull": create_pull,
 }

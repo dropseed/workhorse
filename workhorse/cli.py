@@ -15,6 +15,7 @@ from . import git
 
 WORKHORSE_PREFIX = os.environ.get("WORKHORSE_PREFIX", "WH-")
 WORKHORSE_DIR = os.environ.get("WORKHORSE_DIR", "workhorse")
+WORKHORSE_BRANCH_PREFIX = os.environ.get("WORKHORSE_BRANCH_PREFIX", "workhorse/")
 
 
 def find(name, subdir, extension):
@@ -59,23 +60,25 @@ def plan(name, token):
         if "is:pr" not in query:
             query += " is:pr"
         search_type = "issues"
+        plan_root = p["pulls"]
+
     elif "repos" in p:
         query = p["repos"]["search"]
         search_type = "repositories"
+        plan_root = p["repos"]
 
     click.echo(f'Searching GitHub for "{query}"')
-    targets = find_targets(query, search_type)
+    targets = find_targets(query, search_type, plan_root["limit"])
 
     for target in targets:
         target.update_from_api()
 
-    targets = filter_targets(targets, p["pulls"]["filter"])
-
+    targets = filter_targets(targets, plan_root["filter"])
     click.echo(f"{len(targets)} matching search and filter")
 
     print("")
     for t in targets:
-        output = template.render(p["pulls"]["markdown"], t.data)
+        output = template.render(plan_root["markdown"], t.data)
         print(output)
     print("")
 
@@ -109,6 +112,8 @@ def plan(name, token):
 
     click.secho("Saved for future execution!", fg="green")
     click.echo(exec_filename)
+
+    return targets
 
 
 @cli.command()
@@ -159,17 +164,25 @@ def ci():
     pass
 
 
-@ci.command()
-@click.option("--force", default=False)
-def plan(force):
-    if git.is_dirty():
+@ci.command("plan")
+@click.pass_context
+@click.option("--token", envvar="GITHUB_TOKEN", required=True)
+@click.option("--force", is_flag=True)
+@click.argument("name")
+def plan_ci(ctx, name, force, token):
+    if git.is_dirty() and not force:
         click.secho("Git repo cannot be dirty", fg="red")
+        exit(1)
 
-    # create plan
+    targets = ctx.invoke(plan, name=name, token=token)
+
+    plan_name = os.path.splitext(os.path.basename(name))[0]
+    branch = f"{WORKHORSE_BRANCH_PREFIX}{plan_name}"
 
     if not targets:
-        print("No targets found")
         # if pr exists already, close it
+        # and delete branch
+        return
 
     # create branch, delete it if already exists and create fresh
     # commit, push
@@ -179,8 +192,10 @@ def plan(force):
     # checkout -
 
 
-@ci.command()
-def execute():
+@ci.command("execute")
+@click.pass_context
+@click.option("--token", envvar="GITHUB_TOKEN", required=True)
+def execute_ci(ctx, token):
     # func LastCommitFilesAdded(filterPrefix string) []string {
     #     cmd := exec.Command("git", "diff", "HEAD^", "HEAD", "--name-only", "--diff-filter", "A")
     #     out, err := cmd.CombinedOutput()

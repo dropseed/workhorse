@@ -46,6 +46,7 @@ class PullsSchema(Schema):
             keys=fields.Str(), values=fields.Dict(), validate=validate_pull_commands
         )
     )
+    limit = fields.Int(default=-1)
 
 
 class ReposSchema(Schema):
@@ -57,6 +58,7 @@ class ReposSchema(Schema):
             keys=fields.Str(), values=fields.Dict(), validate=validate_repo_commands
         )
     )
+    limit = fields.Int(default=-1)
 
 
 class PlanSchema(Schema):

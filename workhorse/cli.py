@@ -280,14 +280,15 @@ def plan_ci(ctx, name, force, token):
     )
     response.raise_for_status()
     pulls = response.json()
+    for pull in pulls:
+        click.secho(
+            f"Found an existing pull request for this plan: {pull['html_url']}",
+            fg="yellow",
+        )
 
     if not execution:
         if len(pulls) == 1:
             pull = pulls[0]
-            click.secho(
-                f"Found an open pull request for this plan, closing it\n{pull['html_url']}",
-                fg="yellow",
-            )
 
             response = session.patch(pull["url"], json={"state": "closed"})
             response.raise_for_status()

@@ -1,2 +1,2 @@
 #!/bin/sh -ex
-go mod download
+poetry install

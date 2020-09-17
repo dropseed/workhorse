@@ -1,3 +1,5 @@
 .vscode
-.env
-/workhorse/
+/.venv
+/workhorse-test/
+__pycache__
+*.egg-info

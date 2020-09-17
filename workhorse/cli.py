@@ -3,6 +3,7 @@ import os
 import json
 import re
 import requests
+import random
 
 import yaml
 import click
@@ -127,7 +128,7 @@ def plan(name, token):
     with open(exec_filename, "w+") as f:
         json.dump(execution, f, indent=2, sort_keys=True)
 
-    click.secho("Saved for future execution!", fg="green")
+    click.secho("Saved for future execution on {len(targets)} targets!", fg="green")
     click.echo(exec_filename)
 
     return (targets, exec_filename)
@@ -220,6 +221,12 @@ def execute(name, token):
 @click.argument("name")
 def run(ctx, name, token, keep):
     """Plan and execute in one go"""
+
+    confirm = random.choice(["yes", "yep", "ok", "yeah"])
+    if not click.prompt(f"Are you sure you want to run {name}? This could be destructive. Enter '{confirm}' to continue") == confirm:
+        click.echo("Quitting")
+        return
+
     targets, exec_filename = ctx.invoke(plan, name=name, token=token)
     ctx.invoke(execute, name=exec_filename, token=token)
     if not keep:

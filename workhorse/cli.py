@@ -311,7 +311,7 @@ def plan_ci(ctx, name, force, token):
     git.add_commit(exec_filename, title)
     git.push(branch)
 
-    body = "Merging this PR will run {plan_name} on the following PRs:\n\n"
+    body = f"Merging this PR will run {plan_name} on the following PRs:\n\n"
     for url in execution["targets"]:
         target = Target(execution["plan"]["type"], url)
         target._load()
@@ -329,7 +329,7 @@ def plan_ci(ctx, name, force, token):
     )
     response.raise_for_status()
 
-    click.secho("Opened pull request: {response.json()['html_url']}")
+    click.secho(f"Opened pull request: {response.json()['html_url']}")
 
     git.checkout("-")
 

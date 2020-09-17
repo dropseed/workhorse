@@ -347,7 +347,7 @@ def plan_ci(ctx, name, force, token):
             response.raise_for_status()
             click.secho(f"Updated pull request: {response.json()['html_url']}")
         else:
-            click.secho(f"No change to pull request: {pull['html_url'}")
+            click.secho(f"No change to pull request: {pull['html_url']}")
 
     git.checkout("-")
 

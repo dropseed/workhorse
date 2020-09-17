@@ -1,3 +1,4 @@
+import time
 import os
 import json
 import re
@@ -8,9 +9,8 @@ import click
 
 from .schema import PlanSchema, ExecutionSchema
 from .api import session
-from .user_input import template
 from . import git
-from .models import model_for_url
+from .targets import Target
 
 
 WORKHORSE_PREFIX = os.environ.get("WORKHORSE_PREFIX", "WH-")
@@ -30,16 +30,14 @@ def find(name, subdir, extension):
             return s
 
 
-def find_targets(query, search_type):
+def find_target_urls(query, type, search_type):
     response = session.get(
         f"/search/{search_type}",
         params={"q": query, "sort": "created", "order": "desc"},
         paginate="items",
     )
     response.raise_for_status()
-
-    targets = [model_for_url(x["html_url"]) for x in response.paginated_data]
-    return targets
+    return [x["html_url"] for x in response.paginated_data]
 
 
 @click.group()
@@ -65,26 +63,27 @@ def plan(name, token):
 
     click.echo(f"Loading plan at {filename}")
 
-    p = PlanSchema().dump(data)
+    p = PlanSchema().dump(PlanSchema().load(data))
+    type = p["type"]
+    query = p["search"]
 
-    if "pulls" in p:
-        query = p["pulls"]["search"]
+    if type == "pulls":
         if "is:pr" not in query:
             query += " is:pr"
         search_type = "issues"
-        plan_root = p["pulls"]
 
-    elif "repos" in p:
-        query = p["repos"]["search"]
+    elif type == "repos":
         search_type = "repositories"
-        plan_root = p["repos"]
 
     click.echo(f'Searching GitHub for "{query}"')
 
-    limit = plan_root["limit"]
+    limit = p["limit"]
     targets = []
-    for target in find_targets(query, search_type):
-        if target.matches_filter(plan_root["filter"]):
+    for target_url in find_target_urls(query, type, search_type):
+        target = Target(type, target_url)
+        target.load()
+
+        if target._expression_result(p["filter"]):
             targets.append(target)
 
         if limit > -1 and len(targets) >= limit:
@@ -95,7 +94,7 @@ def plan(name, token):
 
     print("")
     for t in targets:
-        output = template.render(plan_root["markdown"], t.data)
+        output = t._render_markdown(p["markdown"])
         print(output)
     print("")
 
@@ -130,7 +129,7 @@ def plan(name, token):
     click.secho("Saved for future execution!", fg="green")
     click.echo(exec_filename)
 
-    return targets
+    return (targets, exec_filename)
 
 
 @cli.command()
@@ -149,20 +148,16 @@ def execute(name, token):
         data = yaml.safe_load(f)
 
     execution = ExecutionSchema().load(data)
-    if "pulls" in execution["plan"]:
-        plan_root = execution["plan"]["pulls"]
-    elif "repos" in execution["plan"]:
-        plan_root = execution["plan"]["repos"]
-    else:
-        raise Exception("Unknown plan root")
+    p = execution["plan"]
 
     targets = execution["targets"]
     for target_url in targets:
         # enumerate and show 2/13 for progress?
         click.secho(target_url, bold=True, fg="cyan")
-        commands = model_for_url(target_url).get_commands()
+        target = Target(p["type"], target_url)
+        target.load()
 
-        for step in plan_root.get("steps", []):
+        for step in p.get("steps", []):
             for step_name, step_data in step.items():
                 retry = step_data.pop("retry", False)
                 # if retry True, automated
@@ -171,25 +166,62 @@ def execute(name, token):
 
                 allow_error = step_data.pop("allow_error", False)
 
-                try:
-                    # enumerate and show 2/13 for progress?
-                    click.secho(f"- {step_name}", bold=True)
-                    for k, v in step_data.items():
-                        click.secho(f"  {k}: {str(v)[:70]}", bold=True)
-                    result = commands[step_name](**step_data)
-                except Exception as e:
-                    click.secho(str(e), fg="red")
-                    if isinstance(e, requests.RequestException):
-                        click.secho(e.response.text, fg="red")
-                    if allow_error and (allow_error is True or allow_error in str(e)):
-                        click.secho('Error allowed "{allow_error}"', fg="green")
-                    # elif retry:
-                    else:
+                attempt = 0
+                while True:
+                    attempt = attempt + 1
+
+                    try:
+                        # enumerate and show 2/13 for progress?
+                        click.secho(f"- {step_name}", bold=True)
+                        for k, v in step_data.items():
+                            click.secho(f"    {k}: {str(v)[:70]}", bold=True)
+                        result = target._run_command(step_name, step_data)
+                        break
+
+                    except Exception as e:
+                        if allow_error and (allow_error is True or allow_error in str(e)):
+                            click.secho('Error allowed "{allow_error}"', fg="green")
+                            break
+
+                        click.secho(str(e), fg="red")
+
+                        if isinstance(e, requests.RequestException):
+                            click.secho(e.response.text, fg="red")
+
+                            if retry and isinstance(retry, list):
+                                backoff_index = attempt - 1
+                                if backoff_index < len(retry):
+                                    backoff = retry[attempt-1]
+                                    click.secho(f"Waiting {backoff} seconds to retry...", fg="yellow")
+                                    time.sleep(backoff)
+                                    continue
+
+                            elif retry and isinstance(retry, int):
+                                if attempt <= retry:
+                                    click.secho("Waiting 5 seconds to retry...", fg="yellow")
+                                    time.sleep(5)
+                                    continue
+
                         raise e
+
+
             print("")
         print("")
 
-    click.secho(f"Successfully executed {name} on {len(targets)}!", fg="green")
+    click.secho(f"Successfully executed {name} on {len(targets)} targets!", fg="green")
+
+
+@cli.command()
+@click.pass_context
+@click.option("--token", envvar="GITHUB_TOKEN", required=True)
+@click.option("--keep", is_flag=True)
+@click.argument("name")
+def run(ctx, name, token, keep):
+    """Plan and execute in one go"""
+    targets, exec_filename = ctx.invoke(plan, name=name, token=token)
+    ctx.invoke(execute, name=exec_filename, token=token)
+    if not keep:
+        os.remove(exec_filename)
 
 
 @cli.group()
@@ -207,7 +239,7 @@ def plan_ci(ctx, name, force, token):
         click.secho("Git repo cannot be dirty", fg="red")
         exit(1)
 
-    targets = ctx.invoke(plan, name=name, token=token)
+    targets, exec_filename = ctx.invoke(plan, name=name, token=token)
 
     plan_name = os.path.splitext(os.path.basename(name))[0]
     branch = f"{WORKHORSE_BRANCH_PREFIX}{plan_name}"

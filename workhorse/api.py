@@ -17,11 +17,13 @@ class APISession(Session):
             response = super().request(method, next_url, *args, **kwargs)
             print(f"{method} {response.status_code} {next_url}")
 
-            if response.text:
+            data = response.json() if response.text else {}
+
+            if data:
                 if isinstance(paginate, str):
-                    paginated_data += response.json().get(paginate, [])
+                    paginated_data += data.get(paginate, [])
                 else:
-                    paginated_data += response.json()
+                    paginated_data += data
 
             if paginate:
                 next_url = response.links.get("next", {}).get("url", None)

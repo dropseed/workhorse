@@ -11,6 +11,7 @@ from .schema import PlanSchema, ExecutionSchema
 from .api import session
 from . import git
 from .targets import Target
+from .exceptions import RetryException
 
 
 WORKHORSE_PREFIX = os.environ.get("WORKHORSE_PREFIX", "WH-")
@@ -18,7 +19,7 @@ WORKHORSE_DIR = os.environ.get("WORKHORSE_DIR", "workhorse")
 WORKHORSE_BRANCH_PREFIX = os.environ.get("WORKHORSE_BRANCH_PREFIX", "workhorse/")
 
 
-def find(name, subdir, extension):
+def find(name, extension, subdir=""):
     searches = [
         name,
         os.path.join(WORKHORSE_DIR, subdir, name),
@@ -53,7 +54,7 @@ def plan(name, token):
 
     session.set_token(token)
 
-    filename = find(name, "plans", ".yml")
+    filename = find(name, ".yml")
     if not filename:
         click.secho(f'Plan "{name}" not found', fg="red")
         exit(1)
@@ -81,7 +82,7 @@ def plan(name, token):
     targets = []
     for target_url in find_target_urls(query, type, search_type):
         target = Target(type, target_url)
-        target.load()
+        target._load()
 
         if target._expression_result(p["filter"]):
             targets.append(target)
@@ -106,7 +107,7 @@ def plan(name, token):
         {
             "created_from": os.path.relpath(filename, os.getcwd()),
             "plan": p,
-            "targets": [target.url for target in targets],
+            "targets": [target._url for target in targets],
         }
     )
 
@@ -139,7 +140,7 @@ def execute(name, token):
 
     session.set_token(token)
 
-    filename = find(name, "execs", ".json")
+    filename = find(name, ".json", "execs")
     if not filename:
         click.secho(f'Execution "{name}" not found', fg="red")
         exit(1)
@@ -155,7 +156,7 @@ def execute(name, token):
         # enumerate and show 2/13 for progress?
         click.secho(target_url, bold=True, fg="cyan")
         target = Target(p["type"], target_url)
-        target.load()
+        target._load()
 
         for step in p.get("steps", []):
             for step_name, step_data in step.items():
@@ -188,6 +189,7 @@ def execute(name, token):
                         if isinstance(e, requests.RequestException):
                             click.secho(e.response.text, fg="red")
 
+                        if isinstance(e, (requests.RequestException, RetryException)):
                             if retry and isinstance(retry, list):
                                 backoff_index = attempt - 1
                                 if backoff_index < len(retry):

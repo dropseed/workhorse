@@ -322,15 +322,7 @@ def plan_ci(ctx, name, force, token):
         md = target._render_markdown(execution["plan"]["markdown"])
         body = body + "\n" + md
 
-    if len(pulls) == 1:
-        response = session.patch(
-            pulls[0]["url"],
-            json={
-                "title": title,
-                "body": body,
-            },
-        )
-    else:
+    if not pulls:
         response = session.post(
             f"/repos/{repo}/pulls",
             json={
@@ -340,9 +332,22 @@ def plan_ci(ctx, name, force, token):
                 "body": body,
             },
         )
-    response.raise_for_status()
-
-    click.secho(f"Opened pull request: {response.json()['html_url']}")
+        response.raise_for_status()
+        click.secho(f"Opened pull request: {response.json()['html_url']}")
+    elif len(pulls) == 1:
+        pull = pulls[0]
+        if title != pull["title"] or body != pull["body"]:
+            response = session.patch(
+                pull["url"],
+                json={
+                    "title": title,
+                    "body": body,
+                },
+            )
+            response.raise_for_status()
+            click.secho(f"Updated pull request: {response.json()['html_url']}")
+        else:
+            click.secho(f"No change to pull request: {pull['html_url'}")
 
     git.checkout("-")
 

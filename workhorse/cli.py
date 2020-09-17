@@ -179,16 +179,17 @@ def execute(name, token):
                         break
 
                     except Exception as e:
+                        message = str(e)
+                        if isinstance(e, requests.RequestException):
+                            message = message + "\n" + e.response.text
+
                         if allow_error and (
-                            allow_error is True or allow_error in str(e)
+                            allow_error is True or allow_error in message
                         ):
-                            click.secho('Error allowed "{allow_error}"', fg="green")
+                            click.secho(f'Error allowed "{allow_error}"', fg="green")
                             break
 
-                        click.secho(str(e), fg="red")
-
-                        if isinstance(e, requests.RequestException):
-                            click.secho(e.response.text, fg="red")
+                        click.secho(message, fg="red")
 
                         if isinstance(e, (requests.RequestException, RetryException)):
                             if retry and isinstance(retry, list):

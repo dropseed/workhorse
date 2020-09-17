@@ -1,6 +1,7 @@
 import os
 import json
 import re
+import requests
 
 import yaml
 import click
@@ -79,16 +80,18 @@ def plan(name, token):
         plan_root = p["repos"]
 
     click.echo(f'Searching GitHub for "{query}"')
-    targets = find_targets(query, search_type)
-    click.echo(f"{len(targets)} matching search")
-
-    targets = [x for x in targets if x.matches_filter(plan_root["filter"])]
-    click.echo(f"{len(targets)} matching filter")
 
     limit = plan_root["limit"]
-    if limit > -1:
-        click.secho(f"Limiting to {limit}", fg="yellow")
-        targets = targets[:limit]
+    targets = []
+    for target in find_targets(query, search_type):
+        if target.matches_filter(plan_root["filter"]):
+            targets.append(target)
+
+        if limit > -1 and len(targets) >= limit:
+            click.secho(f"Limiting to {limit}", fg="yellow")
+            break
+
+    click.echo(f"{len(targets)} matching filter")
 
     print("")
     for t in targets:
@@ -146,12 +149,20 @@ def execute(name, token):
         data = yaml.safe_load(f)
 
     execution = ExecutionSchema().load(data)
+    if "pulls" in execution["plan"]:
+        plan_root = execution["plan"]["pulls"]
+    elif "repos" in execution["plan"]:
+        plan_root = execution["plan"]["repos"]
+    else:
+        raise Exception("Unknown plan root")
 
-    for target_url in execution["targets"]:
-        click.secho(target_url, bold=True)
+    targets = execution["targets"]
+    for target_url in targets:
+        # enumerate and show 2/13 for progress?
+        click.secho(target_url, bold=True, fg="cyan")
         commands = model_for_url(target_url).get_commands()
 
-        for step in execution["plan"].get("pulls", {}).get("steps", []):
+        for step in plan_root.get("steps", []):
             for step_name, step_data in step.items():
                 retry = step_data.pop("retry", False)
                 # if retry True, automated
@@ -159,19 +170,26 @@ def execute(name, token):
                 # if retry list of numbers, that is the backoff
 
                 allow_error = step_data.pop("allow_error", False)
-                # str to check Exception str against - if contains, let it go
+
                 try:
-                    print(f"  - {step_name} with {step_data}")
+                    # enumerate and show 2/13 for progress?
+                    click.secho(f"- {step_name}", bold=True)
+                    for k, v in step_data.items():
+                        click.secho(f"  {k}: {str(v)[:70]}", bold=True)
                     result = commands[step_name](**step_data)
                 except Exception as e:
                     click.secho(str(e), fg="red")
-                    if allow_error and allow_error in str(e):
+                    if isinstance(e, requests.RequestException):
+                        click.secho(e.response.text, fg="red")
+                    if allow_error and (allow_error is True or allow_error in str(e)):
                         click.secho('Error allowed "{allow_error}"', fg="green")
                     # elif retry:
                     else:
                         raise e
-
+            print("")
         print("")
+
+    click.secho(f"Successfully executed {name} on {len(targets)}!", fg="green")
 
 
 @cli.group()

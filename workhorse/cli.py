@@ -358,26 +358,23 @@ def plan_ci(ctx, name, force, token):
 def execute_ci(ctx, token):
     session.set_token(token)
 
-    # func LastCommitFilesAdded(filterPrefix string) []string {
-    #     cmd := exec.Command("git", "diff", "HEAD^", "HEAD", "--name-only", "--diff-filter", "A")
-    #     out, err := cmd.CombinedOutput()
-    #     if err != nil {
-    #         panic(err)
-    #     }
-    #     s := string(out)
+    if not git.last_commit_message().startswith(WORKHORSE_PREFIX):
+        print(
+            f"Not executing because commit message didn't start with {WORKHORSE_PREFIX}"
+        )
+        return
 
-    #     lines := strings.Split(s, "\n")
+    added_files = git.last_commit_files_added()
+    execs_dir = os.path.join(WORKHORSE_DIR, "execs")
+    committed_execs = [x for x in added_files if x.startswith(execs_dir + "/")]
+    if not committed_execs:
+        print("Not executing because no exec files added by commit")
+        return
 
-    #     paths := []string{}
-    #     for _, line := range lines {
-    #         line := strings.TrimSpace(line)
-    #         if strings.HasPrefix(line, filterPrefix) {
-    #             paths = append(paths, line)
-    #         }
-    #     }
-    #     return paths
-    # }
-    pass
+    for exec_filename in committed_execs:
+        ctx.invoke(execute, name=exec_filename, token=token)
+
+    click.secho(f"Ran {len(committed_execs)} executions!", fg="green")
 
 
 if __name__ == "__main__":

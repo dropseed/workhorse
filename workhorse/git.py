@@ -37,3 +37,22 @@ def push(branch):
 
 def checkout(ref):
     subprocess.check_call(["git", "checkout", ref])
+
+
+def last_commit_message():
+    return (
+        subprocess.check_output(["git", "show", "-s", "--format=%s"])
+        .decode("utf-8")
+        .strip()
+    )
+
+
+def last_commit_files_added():
+    return (
+        subprocess.check_output(
+            ["git", "diff", "HEAD^", "HEAD", "--name-only", "--diff-filter", "A"]
+        )
+        .decode("utf-8")
+        .strip()
+        .splitlines()
+    )

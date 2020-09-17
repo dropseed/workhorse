@@ -323,20 +323,20 @@ def plan_ci(ctx, name, force, token):
         body = body + "\n" + md
 
     if len(pulls) == 1:
+        response = session.patch(
+            f"/repos/{repo}/pulls",
+            json={
+                "title": title,
+                "body": body,
+            },
+        )
+    else:
         response = session.post(
             f"/repos/{repo}/pulls",
             json={
                 "title": title,
                 "head": branch,
                 "base": base,
-                "body": body,
-            },
-        )
-    else:
-        response = session.patch(
-            f"/repos/{repo}/pulls",
-            json={
-                "title": title,
                 "body": body,
             },
         )

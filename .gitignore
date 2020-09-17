@@ -3,3 +3,4 @@
 /workhorse-test/
 __pycache__
 *.egg-info
+/dist

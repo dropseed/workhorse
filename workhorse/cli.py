@@ -324,7 +324,7 @@ def plan_ci(ctx, name, force, token):
 
     if len(pulls) == 1:
         response = session.patch(
-            f"/repos/{repo}/pulls",
+            pulls[0]["url"],
             json={
                 "title": title,
                 "body": body,

@@ -27,8 +27,11 @@ class Target:
     This object itself will get injected into the context,
     so anything with _ is inaccessible there
     """
+
     def __init__(self, type, url):
-        self._type = type.rstrip("s")  # allow with or without s... repos, repo, pulls, etc.
+        self._type = type.rstrip(
+            "s"
+        )  # allow with or without s... repos, repo, pulls, etc.
         self._url = url
         self._api_url = get_api_url(url)
         self._cwd = os.getcwd()
@@ -127,7 +130,9 @@ class Target:
         env["REPO"] = re.search("/?repos/([^/]+/[^/]+)", self.repo._api_url).groups()[0]
         merged_env = os.environ.copy()
         merged_env.update(env)
-        subprocess.run(run, shell=True, env=merged_env, check=True, input=input, cwd=self._cwd)
+        subprocess.run(
+            run, shell=True, env=merged_env, check=True, input=input, cwd=self._cwd
+        )
 
     def _cmd_sleep(self, duration):
         from time import sleep
@@ -167,7 +172,14 @@ class Target:
 
     def _cmd_create_pull(self, title, head, base, body="", draft=False):
         response = session.post(
-            f"{self.repo._api_url}/pulls", json={"title": title, "head": head, "base": base, "body": body, "draft": draft}
+            f"{self.repo._api_url}/pulls",
+            json={
+                "title": title,
+                "head": head,
+                "base": base,
+                "body": body,
+                "draft": draft,
+            },
         )
         response.raise_for_status()
         pull_url = response.json()["html_url"]
@@ -210,7 +222,7 @@ class Target:
             json={
                 "ref": ref,
                 "sha": latest_commit_sha,
-            }
+            },
         )
         response.raise_for_status()
 
@@ -219,9 +231,9 @@ class Target:
 
         response = session.get(file_url, params={"ref": branch})
         response.raise_for_status()
-        original_contents = base64.b64decode(response.json()["content"].encode("utf-8")).decode(
-            "utf-8"
-        )
+        original_contents = base64.b64decode(
+            response.json()["content"].encode("utf-8")
+        ).decode("utf-8")
         original_sha = response.json()["sha"]
 
         updated_contents = original_contents.replace(find, replace)
@@ -229,10 +241,15 @@ class Target:
         if original_contents.strip() == updated_contents.strip():
             raise Exception("No change in find replace")
 
-        response = session.put(file_url, json={
-            "message": message or f"Replace {find} with {replace}",
-            "content": base64.b64encode(updated_contents.encode("utf-8")).decode("utf-8"),
-            "sha": original_sha,
-            "branch": branch,
-        })
+        response = session.put(
+            file_url,
+            json={
+                "message": message or f"Replace {find} with {replace}",
+                "content": base64.b64encode(updated_contents.encode("utf-8")).decode(
+                    "utf-8"
+                ),
+                "sha": original_sha,
+                "branch": branch,
+            },
+        )
         response.raise_for_status()

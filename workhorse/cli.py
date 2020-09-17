@@ -52,7 +52,6 @@ def cli():
 @click.argument("name")
 def plan(name, token):
     """Create and save a plan"""
-
     session.set_token(token)
 
     filename = find(name, ".yml")
@@ -102,7 +101,7 @@ def plan(name, token):
 
     if len(targets) < 1:
         click.secho("No targets found", fg="green")
-        return
+        return (None, None)
 
     execution = ExecutionSchema().load(
         {
@@ -128,17 +127,16 @@ def plan(name, token):
     with open(exec_filename, "w+") as f:
         json.dump(execution, f, indent=2, sort_keys=True)
 
-    click.secho("Saved for future execution on {len(targets)} targets!", fg="green")
+    click.secho(f"Saved for future execution on {len(targets)} targets!", fg="green")
     click.echo(exec_filename)
 
-    return (targets, exec_filename)
+    return (execution, exec_filename)
 
 
 @cli.command()
 @click.option("--token", envvar="GITHUB_TOKEN", required=True)
 @click.argument("name")
 def execute(name, token):
-
     session.set_token(token)
 
     filename = find(name, ".json", "execs")
@@ -181,7 +179,9 @@ def execute(name, token):
                         break
 
                     except Exception as e:
-                        if allow_error and (allow_error is True or allow_error in str(e)):
+                        if allow_error and (
+                            allow_error is True or allow_error in str(e)
+                        ):
                             click.secho('Error allowed "{allow_error}"', fg="green")
                             break
 
@@ -194,19 +194,23 @@ def execute(name, token):
                             if retry and isinstance(retry, list):
                                 backoff_index = attempt - 1
                                 if backoff_index < len(retry):
-                                    backoff = retry[attempt-1]
-                                    click.secho(f"Waiting {backoff} seconds to retry...", fg="yellow")
+                                    backoff = retry[attempt - 1]
+                                    click.secho(
+                                        f"Waiting {backoff} seconds to retry...",
+                                        fg="yellow",
+                                    )
                                     time.sleep(backoff)
                                     continue
 
                             elif retry and isinstance(retry, int):
                                 if attempt <= retry:
-                                    click.secho("Waiting 5 seconds to retry...", fg="yellow")
+                                    click.secho(
+                                        "Waiting 5 seconds to retry...", fg="yellow"
+                                    )
                                     time.sleep(5)
                                     continue
 
                         raise e
-
 
             print("")
         print("")
@@ -221,13 +225,24 @@ def execute(name, token):
 @click.argument("name")
 def run(ctx, name, token, keep):
     """Plan and execute in one go"""
+    session.set_token(token)
 
     confirm = random.choice(["yes", "yep", "ok", "yeah"])
-    if not click.prompt(f"Are you sure you want to run {name}? This could be destructive. Enter '{confirm}' to continue") == confirm:
+    if (
+        not click.prompt(
+            f"Are you sure you want to run {name}? This could be destructive. Enter '{confirm}' to continue"
+        )
+        == confirm
+    ):
         click.echo("Quitting")
         return
 
-    targets, exec_filename = ctx.invoke(plan, name=name, token=token)
+    execution, exec_filename = ctx.invoke(plan, name=name, token=token)
+
+    if not click.confirm("Execute?"):
+        click.echo("Quitting")
+        return
+
     ctx.invoke(execute, name=exec_filename, token=token)
     if not keep:
         os.remove(exec_filename)
@@ -244,32 +259,87 @@ def ci():
 @click.option("--force", is_flag=True)
 @click.argument("name")
 def plan_ci(ctx, name, force, token):
+    session.set_token(token)
+
     if git.is_dirty() and not force:
         click.secho("Git repo cannot be dirty", fg="red")
         exit(1)
 
-    targets, exec_filename = ctx.invoke(plan, name=name, token=token)
+    execution, exec_filename = ctx.invoke(plan, name=name, token=token)
 
     plan_name = os.path.splitext(os.path.basename(name))[0]
+
+    base = "master"
     branch = f"{WORKHORSE_BRANCH_PREFIX}{plan_name}"
 
-    if not targets:
-        # if pr exists already, close it
-        # and delete branch
+    repo = git.repo_from_remote()
+
+    if not execution:
+        head = f"{repo.split('/')[0]}:{branch}"
+        response = session.get(
+            f"/repos/{repo}/pulls", params={"state": "open", "base": base, "head": head}
+        )
+        response.raise_for_status()
+        pulls = response.json()
+        if len(pulls) == 1:
+            pull = pulls[0]
+            click.secho(
+                f"Found an open pull request for this plan, closing it\n{pull['html_url']}",
+                fg="yellow",
+            )
+
+            response = session.patch(pull["url"], json={"state": "closed"})
+            response.raise_for_status()
+
+            response = session.delete(
+                pull["head"]["repo"]["git_refs_url"].replace(
+                    "{/sha}", f"/heads/{branch}"
+                )
+            )
+            response.raise_for_status()
         return
 
-    # create branch, delete it if already exists and create fresh
-    # commit, push
+    try:
+        git.create_branch(branch)
+    except Exception:
+        click.secho("Branch already exists, deleting it", fg="yellow")
+        git.delete_branch(branch)
+        git.create_branch(branch)
 
-    # open PR
+    exec_name = os.path.splitext(os.path.basename(exec_filename))[0]
+    title = f"{exec_name}: {plan_name}"
+    git.add_commit(exec_filename, title)
+    git.push(branch)
 
-    # checkout -
+    body = "Merging this PR will run {plan_name} on the following PRs:\n\n"
+    for url in execution["targets"]:
+        target = Target(execution["plan"]["type"], url)
+        target._load()
+        md = target._render_markdown(execution["plan"]["markdown"])
+        body = body + "\n" + md
+
+    response = session.post(
+        f"/repos/{repo}/pulls",
+        json={
+            "title": title,
+            "head": branch,
+            "base": base,
+            "body": body,
+        },
+    )
+    response.raise_for_status()
+
+    click.secho("Opened pull request: {response.json()['html_url']}")
+
+    git.checkout("-")
 
 
 @ci.command("execute")
 @click.pass_context
 @click.option("--token", envvar="GITHUB_TOKEN", required=True)
 def execute_ci(ctx, token):
+    session.set_token(token)
+
     # func LastCommitFilesAdded(filterPrefix string) []string {
     #     cmd := exec.Command("git", "diff", "HEAD^", "HEAD", "--name-only", "--diff-filter", "A")
     #     out, err := cmd.CombinedOutput()

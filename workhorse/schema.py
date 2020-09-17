@@ -43,9 +43,7 @@ class PlanSchema(Schema):
     markdown = fields.Str(required=True)
     filter = fields.Str()
     steps = fields.List(
-        fields.Dict(
-            keys=fields.Str(), values=fields.Dict(), validate=validate_commands
-        )
+        fields.Dict(keys=fields.Str(), values=fields.Dict(), validate=validate_commands)
     )
     limit = fields.Int(default=-1)
 

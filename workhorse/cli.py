@@ -229,10 +229,10 @@ def run(ctx, name, token, keep):
 
     confirm = random.choice(["yes", "yep", "ok", "yeah"])
     if (
-        not click.prompt(
+        click.prompt(
             f"Are you sure you want to run {name}? This could be destructive. Enter '{confirm}' to continue"
         )
-        == confirm
+        != confirm
     ):
         click.echo("Quitting")
         return
@@ -274,13 +274,14 @@ def plan_ci(ctx, name, force, token):
 
     repo = git.repo_from_remote()
 
+    head = f"{repo.split('/')[0]}:{branch}"
+    response = session.get(
+        f"/repos/{repo}/pulls", params={"state": "open", "base": base, "head": head}
+    )
+    response.raise_for_status()
+    pulls = response.json()
+
     if not execution:
-        head = f"{repo.split('/')[0]}:{branch}"
-        response = session.get(
-            f"/repos/{repo}/pulls", params={"state": "open", "base": base, "head": head}
-        )
-        response.raise_for_status()
-        pulls = response.json()
         if len(pulls) == 1:
             pull = pulls[0]
             click.secho(
@@ -303,6 +304,8 @@ def plan_ci(ctx, name, force, token):
         git.create_branch(branch)
     except Exception:
         click.secho("Branch already exists, deleting it", fg="yellow")
+        # TODO how to only push if changes were made?
+        # stash, checkout branch, apply, see if diff?
         git.delete_branch(branch)
         git.create_branch(branch)
 
@@ -318,15 +321,24 @@ def plan_ci(ctx, name, force, token):
         md = target._render_markdown(execution["plan"]["markdown"])
         body = body + "\n" + md
 
-    response = session.post(
-        f"/repos/{repo}/pulls",
-        json={
-            "title": title,
-            "head": branch,
-            "base": base,
-            "body": body,
-        },
-    )
+    if len(pulls) == 1:
+        response = session.post(
+            f"/repos/{repo}/pulls",
+            json={
+                "title": title,
+                "head": branch,
+                "base": base,
+                "body": body,
+            },
+        )
+    else:
+        response = session.patch(
+            f"/repos/{repo}/pulls",
+            json={
+                "title": title,
+                "body": body,
+            },
+        )
     response.raise_for_status()
 
     click.secho(f"Opened pull request: {response.json()['html_url']}")

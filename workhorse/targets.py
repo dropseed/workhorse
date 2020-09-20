@@ -142,6 +142,7 @@ class Target:
     def _cmd_api(
         self, method, url=None, repo_url=None, json=None, params=None, headers=None
     ):
+        # repo_url could be replaced with more flexible template/format: "{{ repo.url }}/branches" or "{{ repo.branches_url }}"
         if repo_url:
             base = re.search("(/?repos/[^/]+/[^/]+)", self.repo._api_url).groups()[0]
             request_url = base + "/" + repo_url.lstrip("/")

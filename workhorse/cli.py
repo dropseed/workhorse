@@ -145,7 +145,7 @@ def execute(name, token):
         exit(1)
 
     with open(filename, "r") as f:
-        data = yaml.safe_load(f)
+        data = json.load(f)
 
     execution = ExecutionSchema().load(data)
     p = execution["plan"]

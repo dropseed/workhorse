@@ -161,7 +161,7 @@ def execute(name, token):
 
         for step in p.get("steps", []):
             for step_name, step_data in step.items():
-                # TODO validate these in schema
+                # TODO validate types for these in schema
                 retry = step_data.pop("retry", [])
                 retry_error = step_data.pop("retry_error", "")
                 allow_error = step_data.pop("allow_error", False)

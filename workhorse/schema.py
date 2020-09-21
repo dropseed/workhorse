@@ -24,12 +24,7 @@ def validate_commands(d):
         input_params = list(data.keys())
 
         available_params = list(inspect.signature(func).parameters.keys())
-        available_params.append(
-            "retry"
-        )  # retry is always available, but actually outside the function itself
-        available_params.append(
-            "allow_error"
-        )  # retry is always available, but actually outside the function itself
+        available_params += ["retry", "retry_error", "allow_error"]
 
         if not set(input_params).issubset(set(available_params)):
             raise ValidationError(

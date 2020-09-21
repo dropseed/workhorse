@@ -150,6 +150,8 @@ def execute(name, token):
     execution = ExecutionSchema().load(data)
     p = execution["plan"]
 
+    click.secho(f"Executing {filename}", bold=True, fg="green")
+
     targets = execution["targets"]
     for target_url in targets:
         # enumerate and show 2/13 for progress?
@@ -159,11 +161,9 @@ def execute(name, token):
 
         for step in p.get("steps", []):
             for step_name, step_data in step.items():
-                retry = step_data.pop("retry", False)
-                # if retry True, automated
-                # if retry number, retry that many times w/ auto backoff
-                # if retry list of numbers, that is the backoff
-
+                # TODO validate these in schema
+                retry = step_data.pop("retry", [])
+                retry_error = step_data.pop("retry_error", "")
                 allow_error = step_data.pop("allow_error", False)
 
                 attempt = 0
@@ -192,7 +192,11 @@ def execute(name, token):
                         click.secho(message, fg="red")
 
                         if isinstance(e, (requests.RequestException, RetryException)):
-                            if retry and isinstance(retry, list):
+                            if (
+                                retry
+                                and isinstance(retry, list)
+                                and retry_error in message
+                            ):
                                 backoff_index = attempt - 1
                                 if backoff_index < len(retry):
                                     backoff = retry[attempt - 1]
@@ -201,14 +205,6 @@ def execute(name, token):
                                         fg="yellow",
                                     )
                                     time.sleep(backoff)
-                                    continue
-
-                            elif retry and isinstance(retry, int):
-                                if attempt <= retry:
-                                    click.secho(
-                                        "Waiting 5 seconds to retry...", fg="yellow"
-                                    )
-                                    time.sleep(5)
                                     continue
 
                         raise e

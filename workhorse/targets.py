@@ -9,7 +9,7 @@ from cached_property import cached_property
 from .api import session
 from .user_input.expressions import Expression
 from .user_input import template
-from .exceptions import RetryException
+from .exceptions import RetryException, SkipException
 
 
 def get_api_url(url):
@@ -170,6 +170,13 @@ class Target:
         result = self._expression_result(condition)
         if not result:
             raise RetryException(f"Wait condition not satisfied: {result}")
+
+    def _cmd_skip(self, condition):
+        self._clear_cache()
+        self._load(repo=self.repo, pull=self.pull)
+        result = self._expression_result(condition)
+        if result:
+            raise SkipException(f"Skip condition satisfied: {result}")
 
     def _cmd_create_pull(self, title, head, base, body="", draft=False):
         response = session.post(

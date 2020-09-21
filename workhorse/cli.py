@@ -12,7 +12,7 @@ from .schema import PlanSchema, ExecutionSchema
 from .api import session
 from . import git
 from .targets import Target
-from .exceptions import RetryException
+from .exceptions import RetryException, SkipException
 
 
 WORKHORSE_PREFIX = os.environ.get("WORKHORSE_PREFIX", "WH-")
@@ -160,8 +160,12 @@ def execute(name, token):
         target._load()
 
         for step in p.get("steps", []):
-            for step_name, step_data in step.items():
+            for step_name, sd in step.items():
+                step_data = (
+                    sd.copy()
+                )  # don't want to pop off the original (breaks on 2nd usage)
                 # TODO validate types for these in schema
+                description = step_data.pop("description", "")
                 retry = step_data.pop("retry", [])
                 retry_error = step_data.pop("retry_error", "")
                 allow_error = step_data.pop("allow_error", False)
@@ -172,10 +176,19 @@ def execute(name, token):
 
                     try:
                         # enumerate and show 2/13 for progress?
-                        click.secho(f"- {step_name}", bold=True)
+                        click.secho(
+                            f"- {step_name}" + f": {description}"
+                            if description
+                            else "",
+                            bold=True,
+                        )
                         for k, v in step_data.items():
                             click.secho(f"    {k}: {str(v)[:70]}", bold=True)
                         result = target._run_command(step_name, step_data)
+                        break
+
+                    except SkipException as e:
+                        click.secho(str(e), fg="yellow")
                         break
 
                     except Exception as e:

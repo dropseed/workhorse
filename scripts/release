@@ -16,3 +16,5 @@ git tag -a "v$VERSION" -m "v$VERSION"
 echo "Publishing to pypi"
 poetry build
 poetry publish
+
+git push && git push --tags

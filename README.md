@@ -15,3 +15,10 @@ For example:
 
 - Update all or part of a YAML config file across similar repos (e.g. `.github/workflows/test.yml`)
 - Change repo settings across an organization (e.g. disable rebase merging)
+
+# FAQs
+
+### Why do the PRs use the same plan number?
+
+One reason is that this creates git conflicts when one of the PRs is merged.
+Then the others need to be updated, which is what you want to happen anyway to make sure the underlying query still has the same results.

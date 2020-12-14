@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "workhorse"
-version = "0.3.0"
+version = "0.4.0"
 description = "Manage GitHub repositories in bulk"
 authors = ["Dave Gaeddert <dave.gaeddert@dropseed.io>"]
 license = "MIT"

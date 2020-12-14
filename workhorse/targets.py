@@ -261,3 +261,27 @@ class Target:
             },
         )
         response.raise_for_status()
+
+    def _cmd_delete_file(self, file, branch=None, message=None):
+        file_url = f"{self.repo._api_url}/contents/{file}"
+
+        response = session.get(file_url, params={"ref": branch})
+        response.raise_for_status()
+        original_contents = base64.b64decode(
+            response.json()["content"].encode("utf-8")
+        ).decode("utf-8")
+        original_sha = response.json()["sha"]
+
+        data = {
+            "message": message or f"Delete {file}",
+            "sha": original_sha,
+        }
+
+        if branch:
+            data["branch"] = branch
+
+        response = session.delete(
+            file_url,
+            json=data,
+        )
+        response.raise_for_status()

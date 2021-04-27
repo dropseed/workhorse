@@ -79,7 +79,11 @@ def plan(name, token):
     click.echo(f'Searching GitHub for "{query}"')
 
     limit = p["limit"]
+    target_filter = p["filter"]
     targets = []
+    # TODO if no filter, then don't need to process these one by one w/ load?
+    # just get the urls and limit them
+    # (currently fails if filter left blank)
     for target_url in find_target_urls(query, type, search_type):
         target = Target(type, target_url)
         target._load()

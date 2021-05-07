@@ -3,7 +3,10 @@ import re
 import base64
 import tempfile
 import subprocess
+import time
 
+import click
+import requests
 from cached_property import cached_property
 
 from .api import session
@@ -63,6 +66,61 @@ class Target:
         response = session.get(self._api_url)
         response.raise_for_status()
         return response.json()
+
+    def execute_step(self, step):
+        for step_name, sd in step.items():
+            step_data = (
+                sd.copy()
+            )  # don't want to pop off the original (breaks on 2nd usage)
+            # TODO validate types for these in schema
+            description = step_data.pop("description", "")
+            retry = step_data.pop("retry", [])
+            retry_error = step_data.pop("retry_error", "")
+            allow_error = step_data.pop("allow_error", False)
+
+            attempt = 0
+            while True:
+                attempt = attempt + 1
+
+                try:
+                    # enumerate and show 2/13 for progress?
+                    click.secho(
+                        f"- {step_name}" + f": {description}" if description else "",
+                        bold=True,
+                    )
+                    for k, v in step_data.items():
+                        click.secho(f"    {k}: {str(v)[:70]}", bold=True)
+                    result = self._run_command(step_name, step_data)
+                    break
+
+                except SkipException as e:
+                    click.secho(str(e), fg="yellow")
+                    break
+
+                except Exception as e:
+                    message = str(e)
+                    if isinstance(e, requests.RequestException):
+                        message = message + "\n" + e.response.text
+
+                    if allow_error and (allow_error is True or allow_error in message):
+                        click.secho(f'Error allowed "{allow_error}"', fg="green")
+                        break
+
+                    click.secho(message, fg="red")
+
+                    if isinstance(e, (requests.RequestException, RetryException)):
+                        if retry and isinstance(retry, list) and retry_error in message:
+                            backoff_index = attempt - 1
+                            if backoff_index < len(retry):
+                                backoff = retry[attempt - 1]
+                                click.secho(
+                                    f"Waiting {backoff} seconds to retry...",
+                                    fg="yellow",
+                                )
+                                time.sleep(backoff)
+                                continue
+
+                    raise e
 
     def _clear_cache(self):
         if "_data" in self.__dict__:
@@ -142,7 +200,7 @@ class Target:
     def _cmd_api(
         self, method, url=None, repo_url=None, json=None, params=None, headers=None
     ):
-        # repo_url could be replaced with more flexible template/format: "{{ repo.url }}/branches" or "{{ repo.branches_url }}"
+        # TODO repo_url could be replaced with more flexible template/format: "{{ repo.url }}/branches" or "{{ repo.branches_url }}"
         if repo_url:
             base = re.search("(/?repos/[^/]+/[^/]+)", self.repo._api_url).groups()[0]
             request_url = base + "/" + repo_url.lstrip("/")

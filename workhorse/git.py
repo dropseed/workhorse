@@ -1,5 +1,6 @@
 import re
 import subprocess
+import datetime
 
 
 def is_dirty():
@@ -56,3 +57,17 @@ def last_commit_files_added():
         .strip()
         .splitlines()
     )
+
+
+def commit_datetime_of_path(path):
+    try:
+        date_string = (
+            subprocess.check_output(
+                ["git", "log", "-1", "--format=%cd", "--date=iso-strict", path]
+            )
+            .decode("utf-8")
+            .strip()
+        )
+        return datetime.datetime.fromisoformat(date_string)
+    except (ValueError, subprocess.subprocess.CalledProcessError):
+        return None

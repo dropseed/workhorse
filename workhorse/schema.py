@@ -40,13 +40,7 @@ class PlanSchema(Schema):
     steps = fields.List(
         fields.Dict(keys=fields.Str(), values=fields.Dict(), validate=validate_commands)
     )
-    limit = fields.Int(default=-1)
-
-
-# class PlanSchema(Schema):
-#     # TODO validate only one of these
-#     pulls = fields.Nested(PullsSchema())
-#     repos = fields.Nested(ReposSchema())
+    limit = fields.Int(default=-1, missing=-1)
 
 
 class ExecutionSchema(Schema):

@@ -1,4 +1,4 @@
-# workhorse (beta)
+# workhorse (alpha)
 
 Workhorse is a tool for managing GitHub repos and pull requests in bulk.
 

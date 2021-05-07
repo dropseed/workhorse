@@ -1,45 +1,18 @@
-import time
 import os
-import json
-import re
-import requests
-import random
 
-import yaml
 import click
 
-from .schema import PlanSchema, ExecutionSchema
 from .api import session
 from . import git
 from .targets import Target
-from .exceptions import RetryException, SkipException
-
-
-WORKHORSE_PREFIX = os.environ.get("WORKHORSE_PREFIX", "WH-")
-WORKHORSE_DIR = os.environ.get("WORKHORSE_DIR", "workhorse")
-WORKHORSE_BRANCH_PREFIX = os.environ.get("WORKHORSE_BRANCH_PREFIX", "workhorse/")
-
-
-def find(name, extension, subdir=""):
-    searches = [
-        name,
-        os.path.join(WORKHORSE_DIR, subdir, name),
-        os.path.join(WORKHORSE_DIR, subdir, name + extension),
-    ]
-
-    for s in searches:
-        if os.path.exists(s) and os.path.isfile(s):
-            return s
-
-
-def find_target_urls(query, type, search_type):
-    response = session.get(
-        f"/search/{search_type}",
-        params={"q": query, "sort": "created", "order": "desc"},
-        paginate="items",
-    )
-    response.raise_for_status()
-    return [x["html_url"] for x in response.paginated_data]
+from .plans import Plan, load_plans
+from .executions import Execution, load_executions
+from .settings import (
+    WORKHORSE_DIR,
+    WORKHORSE_BRANCH_PREFIX,
+    WORKHORSE_EXECS_DIR,
+    WORKHORSE_PREFIX,
+)
 
 
 @click.group()
@@ -50,56 +23,21 @@ def cli():
 @cli.command()
 @click.option("--token", envvar="GITHUB_TOKEN", required=True)
 @click.argument("name")
-def plan(name, token):
-    """Create and save a plan"""
+def prepare(name, token):
+    """Prepare a plan for execution by loading current targets and saving the execution JSON"""
     session.set_token(token)
 
-    filename = find(name, ".yml")
-    if not filename:
-        click.secho(f'Plan "{name}" not found', fg="red")
-        exit(1)
+    plan = Plan.load_from_name(name)
 
-    with open(filename, "r") as f:
-        data = yaml.safe_load(f)
+    click.echo(f'Searching GitHub for "{plan.search}"')
 
-    click.echo(f"Loading plan at {filename}")
-
-    p = PlanSchema().dump(PlanSchema().load(data))
-    type = p["type"]
-    query = p["search"]
-
-    if type == "pulls":
-        if "is:pr" not in query:
-            query += " is:pr"
-        search_type = "issues"
-
-    elif type == "repos":
-        search_type = "repositories"
-
-    click.echo(f'Searching GitHub for "{query}"')
-
-    limit = p["limit"]
-    target_filter = p["filter"]
-    targets = []
-    # TODO if no filter, then don't need to process these one by one w/ load?
-    # just get the urls and limit them
-    # (currently fails if filter left blank)
-    for target_url in find_target_urls(query, type, search_type):
-        target = Target(type, target_url)
-        target._load()
-
-        if target._expression_result(p["filter"]):
-            targets.append(target)
-
-        if limit > -1 and len(targets) >= limit:
-            click.secho(f"Limiting to {limit}", fg="yellow")
-            break
+    targets = plan.get_targets()
 
     click.echo(f"{len(targets)} matching filter")
 
     print("")
     for t in targets:
-        output = t._render_markdown(p["markdown"])
+        output = t._render_markdown(plan.markdown)
         print(output)
     print("")
 
@@ -107,29 +45,13 @@ def plan(name, token):
         click.secho("No targets found", fg="green")
         return (None, None)
 
-    execution = ExecutionSchema().load(
-        {
-            "created_from": os.path.relpath(filename, os.getcwd()),
-            "plan": p,
-            "targets": [target._url for target in targets],
-        }
+    execution = Execution(
+        created_from=os.path.relpath(plan.path, os.getcwd()),
+        plan=plan,
+        targets=targets,
     )
 
-    execs_dir = os.path.join(WORKHORSE_DIR, "execs")
-    if not os.path.exists(execs_dir):
-        os.makedirs(execs_dir)
-
-    latest = 0
-    for existing in os.listdir(execs_dir):
-        numbers = re.search("\d+", existing)
-        if not numbers:
-            continue
-        latest = max(latest, int(numbers[0]))
-
-    exec_number = latest + 1
-    exec_filename = os.path.join(execs_dir, f"{WORKHORSE_PREFIX}{exec_number}.json")
-    with open(exec_filename, "w+") as f:
-        json.dump(execution, f, indent=2, sort_keys=True)
+    exec_filename = execution.save()
 
     click.secho(f"Saved for future execution on {len(targets)} targets!", fg="green")
     click.echo(exec_filename)
@@ -141,95 +63,18 @@ def plan(name, token):
 @click.option("--token", envvar="GITHUB_TOKEN", required=True)
 @click.argument("name")
 def execute(name, token):
+    """Execute a saved JSON"""
     session.set_token(token)
 
-    filename = find(name, ".json", "execs")
-    if not filename:
-        click.secho(f'Execution "{name}" not found', fg="red")
-        exit(1)
+    execution = Execution.load_from_name(name)
 
-    with open(filename, "r") as f:
-        data = json.load(f)
+    click.secho(f"Executing {execution.path}", bold=True, fg="green")
 
-    execution = ExecutionSchema().load(data)
-    p = execution["plan"]
+    execution.execute()
 
-    click.secho(f"Executing {filename}", bold=True, fg="green")
-
-    targets = execution["targets"]
-    for target_url in targets:
-        # enumerate and show 2/13 for progress?
-        click.secho(target_url, bold=True, fg="cyan")
-        target = Target(p["type"], target_url)
-        target._load()
-
-        for step in p.get("steps", []):
-            for step_name, sd in step.items():
-                step_data = (
-                    sd.copy()
-                )  # don't want to pop off the original (breaks on 2nd usage)
-                # TODO validate types for these in schema
-                description = step_data.pop("description", "")
-                retry = step_data.pop("retry", [])
-                retry_error = step_data.pop("retry_error", "")
-                allow_error = step_data.pop("allow_error", False)
-
-                attempt = 0
-                while True:
-                    attempt = attempt + 1
-
-                    try:
-                        # enumerate and show 2/13 for progress?
-                        click.secho(
-                            f"- {step_name}" + f": {description}"
-                            if description
-                            else "",
-                            bold=True,
-                        )
-                        for k, v in step_data.items():
-                            click.secho(f"    {k}: {str(v)[:70]}", bold=True)
-                        result = target._run_command(step_name, step_data)
-                        break
-
-                    except SkipException as e:
-                        click.secho(str(e), fg="yellow")
-                        break
-
-                    except Exception as e:
-                        message = str(e)
-                        if isinstance(e, requests.RequestException):
-                            message = message + "\n" + e.response.text
-
-                        if allow_error and (
-                            allow_error is True or allow_error in message
-                        ):
-                            click.secho(f'Error allowed "{allow_error}"', fg="green")
-                            break
-
-                        click.secho(message, fg="red")
-
-                        if isinstance(e, (requests.RequestException, RetryException)):
-                            if (
-                                retry
-                                and isinstance(retry, list)
-                                and retry_error in message
-                            ):
-                                backoff_index = attempt - 1
-                                if backoff_index < len(retry):
-                                    backoff = retry[attempt - 1]
-                                    click.secho(
-                                        f"Waiting {backoff} seconds to retry...",
-                                        fg="yellow",
-                                    )
-                                    time.sleep(backoff)
-                                    continue
-
-                        raise e
-
-            print("")
-        print("")
-
-    click.secho(f"Successfully executed {name} on {len(targets)} targets!", fg="green")
+    click.secho(
+        f"Successfully executed {name} on {len(execution.targets)} targets!", fg="green"
+    )
 
 
 @cli.command()
@@ -238,20 +83,13 @@ def execute(name, token):
 @click.option("--keep", is_flag=True)
 @click.argument("name")
 def run(ctx, name, token, keep):
-    """Plan and execute in one go"""
+    """Prepare and execute a plan in one-step (with confirmation)"""
     session.set_token(token)
 
-    confirm = random.choice(["yes", "yep", "ok", "yeah"])
-    if (
-        click.prompt(
-            f"Are you sure you want to run {name}? This could be destructive. Enter '{confirm}' to continue"
-        )
-        != confirm
-    ):
-        click.echo("Quitting")
-        return
+    execution, exec_filename = ctx.invoke(prepare, name=name, token=token)
 
-    execution, exec_filename = ctx.invoke(plan, name=name, token=token)
+    if not execution:
+        return
 
     if not click.confirm("Execute?"):
         click.echo("Quitting")
@@ -262,24 +100,58 @@ def run(ctx, name, token, keep):
         os.remove(exec_filename)
 
 
+@cli.command()
+@click.pass_context
+def history(ctx):
+    if not os.path.exists(WORKHORSE_DIR):
+        click.secho(f"{WORKHORSE_DIR} needs to exist first", fg="red")
+        exit(1)
+
+    if not os.path.exists(WORKHORSE_EXECS_DIR):
+        click.secho(f"{WORKHORSE_EXECS_DIR} needs to exist first", fg="red")
+        exit(1)
+
+    plans = load_plans()
+    plan_executions = {}
+
+    for execution in load_executions():
+        for plan in plans:
+            if os.path.abspath(execution.created_from) == os.path.abspath(plan.path):
+                plan_executions[plan] = execution
+                break
+
+        if len(plans) == len(plan_executions):
+            break
+
+    click.secho(f"{'Plan':<25} {'Execution':<10} Committed at", bold=True)
+    for plan, execution in plan_executions.items():
+        print(
+            f"{str(plan):<25}",
+            f"{str(execution):<10}",
+            git.commit_datetime_of_path(execution.path) or "Unknown",
+        )
+
+
 @cli.group()
 def ci():
+    """Commands for running in GitHub Actions"""
     pass
 
 
-@ci.command("plan")
+@ci.command("prepare")
 @click.pass_context
 @click.option("--token", envvar="GITHUB_TOKEN", required=True)
 @click.option("--force", is_flag=True)
 @click.argument("name")
-def plan_ci(ctx, name, force, token):
+def prepare_ci(ctx, name, force, token):
+    """Prepare a plan for execution and create/update/close associated pull requests"""
     session.set_token(token)
 
     if git.is_dirty() and not force:
         click.secho("Git repo cannot be dirty", fg="red")
         exit(1)
 
-    execution, exec_filename = ctx.invoke(plan, name=name, token=token)
+    execution, exec_filename = ctx.invoke(prepare, name=name, token=token)
 
     plan_name = os.path.splitext(os.path.basename(name))[0]
 
@@ -366,10 +238,12 @@ def plan_ci(ctx, name, force, token):
     git.checkout("-")
 
 
+# TODO optionally parse from git -- still have option to run a named exec
 @ci.command("execute")
 @click.pass_context
 @click.option("--token", envvar="GITHUB_TOKEN", required=True)
 def execute_ci(ctx, token):
+    """Execute plans from the latest git commit"""
     session.set_token(token)
 
     if not git.last_commit_message().startswith(WORKHORSE_PREFIX):
@@ -379,8 +253,9 @@ def execute_ci(ctx, token):
         return
 
     added_files = git.last_commit_files_added()
-    execs_dir = os.path.join(WORKHORSE_DIR, "execs")
-    committed_execs = [x for x in added_files if x.startswith(execs_dir + "/")]
+    committed_execs = [
+        x for x in added_files if x.startswith(WORKHORSE_EXECS_DIR + "/")
+    ]
     if not committed_execs:
         print("Not executing because no exec files added by commit")
         return
